@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-text-one: #092c4c;
+  --color-text-two: #212b36;
+  --text-12: 12px;
+  --text-14: 14px;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #a6aaaf;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-button {
+  display: none;
+}
