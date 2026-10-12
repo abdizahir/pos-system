@@ -24,6 +24,8 @@ import {
   useGetProfitInsightsQuery,
   useGetProfitLossQuery,
 } from "../../../api/api";
+import { shopDetailsLine, useShop } from "../../shop/useShop";
+import { writePdfShopHeader } from "../reportUtils";
 
 // ============================================================
 // HELPERS
@@ -170,6 +172,8 @@ function SectionTitle({ title }: { title: string }) {
 // ============================================================
 
 export default function ProfitLossPage() {
+  const { shop, name: shopName } = useShop();
+  const pdfShop = { name: shopName, details: shopDetailsLine(shop) };
   const [searchParams, setSearchParams] = useSearchParams();
   const today = toDateInput(new Date());
   const defaultRange = presetRange("today");
@@ -326,14 +330,16 @@ export default function ProfitLossPage() {
       const doc = new jsPDF({ unit: "pt", format: "a4" });
       const marginX = 40;
 
+      const top = writePdfShopHeader(doc, pdfShop, marginX);
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      doc.text("Profit & Loss Statement", marginX, 50);
+      doc.text("Profit & Loss Statement", marginX, top);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(100);
-      doc.text(`Period: ${periodText}`, marginX, 68);
-      doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, marginX, 82);
+      doc.text(`Period: ${periodText}`, marginX, top + 18);
+      doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, marginX, top + 32);
       doc.setTextColor(0);
 
       const totals = new Set([
@@ -347,7 +353,7 @@ export default function ProfitLossPage() {
       const headings = new Set(["Revenue", "Cost of Sales", "Operating Expenses"]);
 
       autoTable(doc, {
-        startY: 100,
+        startY: top + 50,
         margin: { left: marginX, right: marginX },
         head: [["Account", "Amount (ETB)"]],
         body: statementRows(),

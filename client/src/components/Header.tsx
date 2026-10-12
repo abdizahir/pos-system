@@ -34,6 +34,7 @@ import {
 } from "./sidebar/navConfig";
 import { canAccess } from "../features/auth/roles";
 import { useCurrentUser } from "../features/auth/useCurrentUser";
+import { useShop } from "../features/shop/useShop";
 
 // ============================================================
 // HELPERS
@@ -477,6 +478,7 @@ export default function Header() {
 
   const { group, title } = pageTitle(pathname);
   const { isManagement } = useCurrentUser();
+  const { name: shopName } = useShop();
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#EEF0F3] bg-white/90 backdrop-blur">
@@ -493,7 +495,7 @@ export default function Header() {
           </button>
           <button type="button" onClick={() => navigate("/dashboard")} className="flex min-w-0 items-center gap-2" aria-label="Dashboard">
             <Logo size={32} />
-            <span className="truncate text-sm font-semibold text-[#0F172A]">{title || "Galool POS"}</span>
+            <span className="truncate text-sm font-semibold text-[#0F172A]">{title || shopName}</span>
           </button>
         </div>
 
@@ -515,7 +517,7 @@ export default function Header() {
       <div className="hidden h-16 items-center gap-4 px-6 md:flex">
         <div className="min-w-0 shrink-0 lg:w-56">
           {group && <p className="text-xs font-medium text-[#94A3B8]">{group}</p>}
-          <h1 className="truncate text-base font-semibold text-[#0F172A]">{title || "Galool POS"}</h1>
+          <h1 className="truncate text-base font-semibold text-[#0F172A]">{title || shopName}</h1>
         </div>
 
         <div className="flex flex-1 justify-center">

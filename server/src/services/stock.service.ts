@@ -1,9 +1,5 @@
 import * as stockRepository from "../repositories/stock.repository.js";
 
-import {
-  updateStockSchema,
-} from "../validators/validator.js";
-
 export const DIRECT_STOCK_CREATION_DISABLED_MESSAGE =
   "Direct stock creation is disabled because it bypasses accounting. Use the opening stock flow or create a purchase instead.";
 

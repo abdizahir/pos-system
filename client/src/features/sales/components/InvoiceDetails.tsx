@@ -2,6 +2,7 @@ import { FiArrowLeft, FiPrinter } from "react-icons/fi";
 
 
 import { useGetSaleQuery } from "../../../api/api";
+import { shopDetailsLine, useShop } from "../../shop/useShop";
 import { useDispatch } from "react-redux";
 import { closeInvoiceDetails } from "../../../store/posSlice";
 
@@ -14,6 +15,7 @@ export default function InvoiceDetails({
 }: InvoiceIdProps) {
   
   const dispatch = useDispatch();
+  const { shop, name: shopName } = useShop();
 
   const {
     data: sale,
@@ -92,6 +94,17 @@ export default function InvoiceDetails({
           <FiPrinter size={16} />
           <span>Print</span>
         </button>
+      </div>
+
+      {/* ================================================== */}
+      {/* SHOP */}
+      {/* ================================================== */}
+
+      <div className="w-full px-6 pt-6 text-center">
+        <p className="text-xl font-bold text-text-two">{shopName}</p>
+        {shopDetailsLine(shop) && (
+          <p className="mt-0.5 text-sm text-[#646B72]">{shopDetailsLine(shop)}</p>
+        )}
       </div>
 
       {/* ================================================== */}

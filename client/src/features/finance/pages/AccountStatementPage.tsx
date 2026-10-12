@@ -13,6 +13,8 @@ import {
   type Account,
   type LedgerType,
 } from "../../../api/api";
+import { shopDetailsLine, useShop } from "../../shop/useShop";
+import { writePdfShopHeader } from "../../reports/reportUtils";
 
 // ============================================================
 // HELPERS
@@ -92,6 +94,8 @@ const INPUT =
 // ============================================================
 
 export default function AccountStatementPage() {
+  const { shop, name: shopName } = useShop();
+  const pdfShop = { name: shopName, details: shopDetailsLine(shop) };
   const { data: accounts = [], isLoading: isAccountsLoading } =
     useGetAccountsQuery();
 
@@ -296,24 +300,26 @@ export default function AccountStatementPage() {
       const doc = new jsPDF({ unit: "pt", format: "a4" });
       const marginX = 40;
 
+      const top = writePdfShopHeader(doc, pdfShop, marginX);
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      doc.text(`Statement of Account : ${statementTitle}`, marginX, 50);
+      doc.text(`Statement of Account : ${statementTitle}`, marginX, top);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(100);
-      doc.text(subject.name, marginX, 68);
+      doc.text(subject.name, marginX, top + 18);
       doc.text(
         `Period: ${formatDay(appliedFrom)} – ${formatDay(appliedTo)}`,
         marginX,
-        82,
+        top + 32,
       );
-      doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, marginX, 96);
+      doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, marginX, top + 46);
       doc.setTextColor(0);
 
       autoTable(doc, {
-        startY: 112,
+        startY: top + 62,
         margin: { left: marginX, right: marginX },
         head: [["Date", "Reference", "Category", "Description", "Type", "Credit (In)"]],
         body: transactions.map((t) => [

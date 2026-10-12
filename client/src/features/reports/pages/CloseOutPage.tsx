@@ -17,6 +17,7 @@ import {
 } from "react-icons/fi";
 
 import { useGetCloseOutQuery, type CloseOutPeriod } from "../../../api/api";
+import { shopDetailsLine, useShop } from "../../shop/useShop";
 import {
   AmountTable,
   ErrorBanner,
@@ -92,6 +93,8 @@ type Row = { key: string; label: string; value: number; tone?: string };
 // ============================================================
 
 export default function CloseOutPage() {
+  const { shop, name: shopName } = useShop();
+  const pdfShop = { name: shopName, details: shopDetailsLine(shop) };
   const [searchParams, setSearchParams] = useSearchParams();
   const today = toDateInput(new Date());
 
@@ -262,7 +265,7 @@ export default function CloseOutPage() {
     if (!data) return;
     setIsPdfLoading(true);
     try {
-      await downloadPdf(`${fileBase}.pdf`, `${activePeriod.label} Report`, [`Period: ${title}`], pdfTables());
+      await downloadPdf(`${fileBase}.pdf`, `${activePeriod.label} Report`, [`Period: ${title}`], pdfTables(), pdfShop);
     } catch (error) {
       console.error("PDF export failed:", error);
     } finally {

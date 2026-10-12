@@ -34,11 +34,12 @@ async function main() {
     "Other",
   ];
 
-  for (const name of categories) {
-    await prisma.category.upsert({
-      where: { name },
-      update: {},
-      create: { name },
+  // Only on a new install: the seed runs on every start, and a shop
+  // may delete or rename the defaults afterwards
+  if ((await prisma.category.count()) === 0) {
+    await prisma.category.createMany({
+      data: categories.map((name) => ({ name })),
+      skipDuplicates: true,
     });
   }
 
@@ -58,11 +59,11 @@ async function main() {
     "Carton",
   ];
 
-  for (const name of units) {
-    await prisma.unit.upsert({
-      where: { name },
-      update: {},
-      create: { name },
+  // Only on a new install, same as categories
+  if ((await prisma.unit.count()) === 0) {
+    await prisma.unit.createMany({
+      data: units.map((name) => ({ name })),
+      skipDuplicates: true,
     });
   }
 

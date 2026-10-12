@@ -1,5 +1,7 @@
-// Helpers shared by the report pages (Cash Flow, Close-Out, ...):
+// Helpers shared by the report pages (Close-Out, VAT, P&L, ...):
 // dates, money formatting and the PDF / Excel downloads.
+
+import type { jsPDF } from "jspdf";
 
 export function toDateInput(date: Date) {
   const y = date.getFullYear();
@@ -73,6 +75,30 @@ export function downloadCsv(fileName: string, rows: (string | number)[][]) {
 // PDF (built in the browser; the library loads only when used)
 // ------------------------------------------------------------
 
+// The shop a PDF belongs to: its name and an address / phone line
+export type PdfShop = { name: string; details?: string };
+
+// Writes the shop's name (and details) at the top of a PDF and
+// returns where the report title should go.
+export function writePdfShopHeader(doc: jsPDF, shop: PdfShop | undefined, x: number) {
+  if (!shop) return 50;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+  doc.text(shop.name, x, 40);
+
+  if (shop.details) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(shop.details, x, 54);
+    doc.setTextColor(0);
+  }
+
+  return 80;
+}
+
 export type PdfTable = {
   title?: string;
   head: string[];
@@ -88,6 +114,7 @@ export async function downloadPdf(
   title: string,
   subtitleLines: string[],
   tables: PdfTable[],
+  shop?: PdfShop,
 ) {
   const [{ jsPDF }, { default: autoTable }] = await Promise.all([
     import("jspdf"),
@@ -97,14 +124,16 @@ export async function downloadPdf(
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const marginX = 40;
 
+  const titleY = writePdfShopHeader(doc, shop, marginX);
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  doc.text(title, marginX, 50);
+  doc.text(title, marginX, titleY);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(100);
-  let y = 68;
+  let y = titleY + 18;
   for (const line of [...subtitleLines, `Generated: ${new Date().toLocaleString("en-GB")}`]) {
     doc.text(line, marginX, y);
     y += 14;

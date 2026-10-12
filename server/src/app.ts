@@ -32,6 +32,10 @@ import {
 
 const app = express();
 
+// Behind a hosting proxy (e.g. Railway): use the visitor's real IP, so
+// the login rate limit counts each visitor separately
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
+
 app.use(helmet());
 
 app.use(
@@ -49,6 +53,23 @@ app.use(express.json({ limit: "1mb" }));
 // ------------------------------------------------------------
 // Public
 // ------------------------------------------------------------
+
+// For the host's health check
+app.get("/api/health", (_req: Request, res: Response) => {
+  res.json({ status: "ok" });
+});
+
+// This shop's details for the login page, invoices and reports.
+// Each shop's install sets them in its own environment variables.
+app.get("/api/shop", (_req: Request, res: Response) => {
+  res.json({
+    name: process.env.SHOP_NAME?.trim() || "My Shop",
+    address: process.env.SHOP_ADDRESS?.trim() || null,
+    phone: process.env.SHOP_PHONE?.trim() || null,
+    tin: process.env.SHOP_TIN?.trim() || null,
+  });
+});
+
 app.use("/api/auth", authRoutes);
 
 // ------------------------------------------------------------

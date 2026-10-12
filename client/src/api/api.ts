@@ -983,6 +983,14 @@ export type UserRole = "MANAGER" | "CASHIER";
 
 export type Me = { id: number; email: string; role: UserRole };
 
+// This shop's details (set per install on the server)
+export type Shop = {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  tin: string | null;
+};
+
 export type OverdueSales = {
   overdueAfterDays: number;
   count: number;
@@ -1628,43 +1636,6 @@ export const api = createApi({
       ],
     }),
 
-    updateStock: builder.mutation<
-      Stock,
-      {
-        id: number;
-        quantity: number;
-        purchasePrice: number;
-        expiryDate: string | null;
-        notes?: string | null;
-      }
-    >({
-      query: ({ id, quantity, purchasePrice, expiryDate, notes }) => ({
-        url: `stocks/${id}`,
-        method: "PATCH",
-        body: {
-          quantity,
-          purchasePrice,
-          expiryDate,
-          notes,
-        },
-      }),
-
-      invalidatesTags: (_result, _error, arg) => [
-        {
-          type: "Stock",
-          id: arg.id,
-        },
-        {
-          type: "Stock",
-          id: "LIST",
-        },
-        {
-          type: "Product",
-          id: "LIST",
-        },
-      ],
-    }),
-
     // ========================================================
     // WRITE OFF EXPIRED STOCK
     // ========================================================
@@ -1787,28 +1758,6 @@ export const api = createApi({
         {
           type: "Stock",
           id,
-        },
-      ],
-    }),
-
-    deleteStock: builder.mutation<void, { id: number }>({
-      query: ({ id }) => ({
-        url: `stocks/${id}`,
-        method: "DELETE",
-      }),
-
-      invalidatesTags: (_result, _error, arg) => [
-        {
-          type: "Stock",
-          id: arg.id,
-        },
-        {
-          type: "Stock",
-          id: "LIST",
-        },
-        {
-          type: "Product",
-          id: "LIST",
         },
       ],
     }),
@@ -2409,6 +2358,13 @@ export const api = createApi({
     // CURRENT USER
     // ========================================================
 
+    // Public: also used on the login page
+    getShop: builder.query<Shop, void>({
+      query: () => "shop",
+      // Shop details rarely change; keep them for the whole session
+      keepUnusedDataFor: 60 * 60,
+    }),
+
     getMe: builder.query<Me, void>({
       query: () => "me",
       providesTags: ["Me"],
@@ -2553,8 +2509,6 @@ export const {
   useAdjustStockMutation,
   useGetStockQuery,
   useCreateOpeningStockMutation,
-  useUpdateStockMutation,
-  useDeleteStockMutation,
 
   // Sales
   useGetSalesQuery,
@@ -2604,6 +2558,7 @@ export const {
   useGetLedgerBalancesQuery,
   useGetVatReportQuery,
   useGetProductAlertsQuery,
+  useGetShopQuery,
   useGetOverdueSalesQuery,
   useGetMeQuery,
   useGetSalesSummaryQuery,

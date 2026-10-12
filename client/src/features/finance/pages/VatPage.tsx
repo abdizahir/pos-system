@@ -17,6 +17,7 @@ import {
 } from "react-icons/fi";
 
 import { useGetVatReportQuery } from "../../../api/api";
+import { shopDetailsLine, useShop } from "../../shop/useShop";
 import {
   ErrorBanner,
   KpiCard,
@@ -93,6 +94,8 @@ function monthLabel(key: string) {
 // ============================================================
 
 export default function VatPage() {
+  const { shop, name: shopName } = useShop();
+  const pdfShop = { name: shopName, details: shopDetailsLine(shop) };
   const [searchParams, setSearchParams] = useSearchParams();
   const today = toDateInput(new Date());
   const defaultRange = presetRange("month");
@@ -258,7 +261,7 @@ export default function VatPage() {
           ]),
           rightAlign: [4, 5],
         },
-      ]);
+      ], pdfShop);
     } catch (error) {
       console.error("PDF export failed:", error);
       setFormError("Couldn't create the PDF. Please try again.");

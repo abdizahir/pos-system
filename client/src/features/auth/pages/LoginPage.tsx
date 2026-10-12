@@ -12,15 +12,17 @@ import {
 import Logo from "../../../components/Logo";
 import type { RootState } from "../../../store/store";
 import LoginForm from "../components/LoginForm";
+import { PRODUCT_NAME, useShop } from "../../shop/useShop";
 
 const FEATURES = [
   { icon: FiShoppingCart, title: "Fast checkout", text: "Scan, sell and take cash, bank or mobile payments." },
   { icon: FiBox, title: "Stock that keeps up", text: "Low-stock and expiry alerts before shelves run empty." },
-  { icon: FiBarChart2, title: "Books you can trust", text: "Every sale posts to the ledger — P&L, VAT and balance sheet." },
+  { icon: FiBarChart2, title: "Books you can trust", text: "Every sale is recorded — P&L, VAT and close-out reports." },
 ];
 
 export default function LoginPage() {
   const token = useSelector((state: RootState) => state.auth.token);
+  const { name: shopName } = useShop();
 
   // Already signed in
   if (token) return <Navigate to="/dashboard" replace />;
@@ -42,7 +44,7 @@ export default function LoginPage() {
         <div className="relative flex items-center gap-3">
           <Logo size={44} />
           <div className="leading-tight">
-            <p className="text-lg font-bold">Galool POS</p>
+            <p className="text-lg font-bold">{shopName}</p>
             <p className="text-xs text-white/60">Point of sale & accounting</p>
           </div>
         </div>
@@ -97,7 +99,7 @@ export default function LoginPage() {
       <main className="flex flex-col bg-[#F8F4F0] px-6 py-8 sm:px-10 lg:bg-white">
         <div className="flex items-center gap-2.5 lg:hidden">
           <Logo size={38} />
-          <p className="text-lg font-bold text-text-two">Galool POS</p>
+          <p className="text-lg font-bold text-text-two">{shopName}</p>
         </div>
 
         <div className="mx-auto my-auto w-full max-w-sm py-10">
@@ -115,7 +117,7 @@ export default function LoginPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#A0A7AE]">
-          <span>© {new Date().getFullYear()} Galool POS</span>
+          <span>© {new Date().getFullYear()} {shopName} · Powered by {PRODUCT_NAME}</span>
           <span className="flex items-center gap-1">
             <FiCheckCircle size={12} className="text-emerald-500" /> Secure sign-in
           </span>
