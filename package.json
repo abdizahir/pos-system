@@ -1,7 +1,7 @@
 {
   "name": "pos-system",
   "version": "1.0.0",
-  "description": "",
+  "description": "POS system: server (API) and client (website) live in their own folders",
   "homepage": "https://github.com/abdizahir/pos-system#readme",
   "bugs": {
     "url": "https://github.com/abdizahir/pos-system/issues"
@@ -13,8 +13,8 @@
   "license": "ISC",
   "author": "",
   "type": "commonjs",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node -e \"console.error(\\\"\\nThis is the repository root. Set the service Root Directory to server (API) or client (website). See DEPLOY.md.\\n\\\");process.exit(1)\"",
+    "build": "node -e \"console.error(\\\"\\nThis is the repository root. Set the service Root Directory to server (API) or client (website). See DEPLOY.md.\\n\\\");process.exit(1)\""
   }
 }
