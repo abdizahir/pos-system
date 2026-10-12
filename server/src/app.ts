@@ -38,12 +38,19 @@ app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
 
 app.use(helmet());
 
+// The shop's website address(es), comma-separated, e.g.
+// "https://shop.up.railway.app". Browsers send the origin without a
+// trailing "/", so spaces and trailing slashes are removed here.
+const allowedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
+console.log(`CORS allows: ${allowedOrigins.join(", ") || "(none)"}`);
+
 app.use(
   cors({
-    // Comma-separated list, e.g. "https://pos.example.com"
-    origin: (process.env.CORS_ORIGIN ?? "http://localhost:5173")
-      .split(",")
-      .map((origin) => origin.trim()),
+    origin: allowedOrigins,
     credentials: true,
   }),
 );
