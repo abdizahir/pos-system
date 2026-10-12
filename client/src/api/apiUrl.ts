@@ -2,7 +2,7 @@
 // time). Cleaned so small typing differences can't break requests:
 //   " https://shop.up.railway.app/ "    → https://shop.up.railway.app
 //   "https://shop.up.railway.app/api/"  → https://shop.up.railway.app
-export const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000")
+export const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/+$/, "")
   .trim()
   .replace(/\/+$/, "")
   .replace(/\/api$/i, "");
