@@ -9,7 +9,7 @@ import {
 } from "@reduxjs/toolkit/query/react";
 import type { RootState } from "../store/store";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { API_URL } from "./apiUrl";
 
 // ============================================================
 // TYPES
