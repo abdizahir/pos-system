@@ -194,6 +194,8 @@ export const accountRepository = {
             ownerWithdrawalId: true,
             vatPaymentId: true,
             saleReturnId: true,
+            expense: { select: { category: true } },
+            income: { select: { category: true } },
           },
         },
       },

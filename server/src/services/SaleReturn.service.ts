@@ -1,8 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import {
-  getPaymentChartCode,
   isMobileAccountType,
-  paymentAccountIdFor,
+  RECORD_ONLY_CHART_CODE,
 } from "../utils/payment-accounts.js";
 import { availableBalance } from "../utils/money-source.js";
 
@@ -86,13 +85,12 @@ async function getChartAccountId(
 
 async function getRefundChartAccountId(
   tx: Prisma.TransactionClient,
-  refundMethod: PaymentMethod,
-  accountId?: number | null
+  _refundMethod: PaymentMethod,
+  _accountId?: number | null
 ) {
-  return getChartAccountId(
-    tx,
-    await getPaymentChartCode(tx, refundMethod, accountId)
-  );
+  // Record-only: refunds are booked against Owner's Capital and
+  // never take money out of an account.
+  return getChartAccountId(tx, RECORD_ONLY_CHART_CODE);
 }
 
 
@@ -244,20 +242,15 @@ async function createSaleReturnJournal(
       );
     }
 
-    // Can't refund more than the cash or account holds
-    const available = await availableBalance(
+    // Checks the refund account is valid. Record-only: the balance
+    // is not checked and the refund never reduces it.
+    await availableBalance(
       tx,
       saleReturn.refundMethod,
       saleReturn.accountId
     ).catch((error: unknown) => {
       throw new Error(error instanceof Error ? error.message : "Invalid refund account");
     });
-
-    if (refundAmount.gt(available + 0.005)) {
-      throw new Error(
-        `Not enough money to refund ETB ${refundAmount.toFixed(2)}. Only ETB ${available.toFixed(2)} is available.`
-      );
-    }
 
     const refundAccountId =
       await getRefundChartAccountId(
@@ -268,10 +261,7 @@ async function createSaleReturnJournal(
 
     journalLines.push({
       accountId: refundAccountId,
-      paymentAccountId: paymentAccountIdFor(
-        saleReturn.refundMethod,
-        saleReturn.accountId,
-      ),
+      paymentAccountId: null,
       debit: new Prisma.Decimal(0),
       credit: refundAmount,
     });

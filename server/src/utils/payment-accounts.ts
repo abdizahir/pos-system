@@ -25,6 +25,11 @@ export function isMobileAccountType(type: AccountType) {
   return type === "WALLET" || type === "MERCHANT";
 }
 
+// Record-only: cash purchases, supplier payments and expenses are
+// treated as paid from outside the till, so they are booked against
+// Owner's Capital and never take money out of the Cash Register.
+export const RECORD_ONLY_CHART_CODE = "3000";
+
 // Chart code for a payment method. MOBILE depends on whether the
 // selected account is a wallet or a merchant account.
 export async function getPaymentChartCode(

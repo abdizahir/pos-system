@@ -168,9 +168,7 @@ export function SidebarNav({
         <>
             {showHome && <NavRow item={NAV_HOME} onNavigate={onNavigate} />}
 
-            <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-[#A0A7AE]">
-              Menu
-            </p>
+         
 
             {groups.map((group) => {
               const Icon = group.icon;

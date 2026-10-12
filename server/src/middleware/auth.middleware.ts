@@ -94,9 +94,6 @@ export function authorize(...allowedRoles: string[]) {
 // Running the store: everything except the teller desk is the manager's job
 export const requireManagement = authorize("MANAGER");
 
-// Owner withdrawals: the manager only
-export const requireManager = requireManagement;
-
 // Anyone logged in can read; only the manager can change
 export function managementForWrites(req: Request, res: Response, next: NextFunction) {
   return req.method === "GET" ? next() : requireManagement(req, res, next);

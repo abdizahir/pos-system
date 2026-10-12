@@ -38,7 +38,7 @@ async function findByEmail(email: string) {
   return user;
 }
 
-// Only one active manager: they are the one who takes owner withdrawals
+// Only one active manager
 async function assertNoOtherManager(exceptId?: number) {
   const other = await prisma.user.findFirst({
     where: {

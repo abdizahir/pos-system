@@ -1,6 +1,6 @@
 // server/src/utils/money-source.ts
 //
-// Shared checks for money leaving the business (payroll, owner withdrawals).
+// Shared checks for money leaving the business (payroll, VAT, refunds).
 
 import type { Prisma } from "../../generated/prisma/client.js";
 import { getLedgerBalance, isMobileAccountType } from "./payment-accounts.js";

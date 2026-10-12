@@ -315,13 +315,6 @@ type UpdatePurchaseInput = {
   items?: CreatePurchaseItemInput[];
 };
 
-type PaySupplierInput = {
-  supplierId: number;
-  amount: number;
-  paymentMethod: "CASH" | "CARD" | "MOBILE" | "BANK";
-  accountId?: number | null;
-};
-
 // ============================================================
 // STOCK
 // ============================================================
@@ -468,6 +461,14 @@ type Sale = {
   payments: Payment[];
 
   user?: User;
+
+  customerId?: number | null;
+  customer?: {
+    id: number;
+    fname: string;
+    lname: string;
+    phone: string;
+  } | null;
 };
 
 type CreateSaleInput = {
@@ -508,6 +509,9 @@ type CreateSaleInput = {
 type CreateSaleReturnInput = {
   reason: string;
   notes?: string;
+
+  refundMethod?: "CASH" | "CARD" | "MOBILE" | "BANK";
+  accountId?: number;
 
   items: {
     saleItemId: number;
@@ -602,7 +606,8 @@ type CreateExpenseInput = {
   amount: number;
   date: string;
 
-  paymentMethod: "CASH" | "CARD" | "MOBILE" | "BANK";
+  // Optional: the server records it as cash when omitted
+  paymentMethod?: "CASH" | "CARD" | "MOBILE" | "BANK";
   accountId?: number | null;
 
   reference?: string | null;
@@ -699,6 +704,8 @@ export type LedgerStatement = {
     journalEntryId: number;
     date: string;
     source: string;
+    // Income / expense category, or the kind of entry (e.g. "Sales")
+    category: string;
     reference: string | null;
     description: string;
     account: {
@@ -711,43 +718,6 @@ export type LedgerStatement = {
     amountOut: number;
     balance: number;
   }[];
-};
-
-// ============================================================
-// MONEY TRANSFER
-// ============================================================
-
-export type MoneyTransfer = {
-  id: number;
-  date: string;
-  reference: string;
-  number: string;
-  amount: number | string;
-  fromAccountId: number;
-  toAccountId: number;
-  userId: number;
-  createdAt: string;
-  updatedAt: string;
-
-  fromAccount: {
-    id: number;
-    bankName: string;
-    name: string;
-    number: string;
-  };
-
-  toAccount: {
-    id: number;
-    bankName: string;
-    name: string;
-    number: string;
-  };
-};
-
-export type CreateMoneyTransferInput = {
-  fromAccountId: number;
-  toAccountId: number;
-  amount: number;
 };
 
 // ============================================================
@@ -799,117 +769,6 @@ export type CreateJournalEntryInput = {
 };
 
 // ============================================================
-// BALANCE SHEET
-// ============================================================
-
-export type BalanceSheet = {
-  asOf: string;
-
-  assets: {
-    cash: number;
-    bankAccounts: number;
-    mobileWallets: number;
-    merchantAccounts: number;
-    inventory: number;
-    accountsReceivable: number;
-    otherAssets: number;
-    total: number;
-  };
-
-  liabilities: {
-    supplierPayables: number;
-    loans: number;
-    otherDebts: number;
-    total: number;
-  };
-
-  equity: {
-    ownersCapital: number;
-    otherEquity: number;
-    retainedProfit: number;
-    total: number;
-  };
-
-  liabilitiesAndEquity: number;
-
-  balanceDifference: number;
-
-  isBalanced: boolean;
-
-  accountBalances?: {
-    code: string;
-    name: string;
-
-    type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
-
-    amount: number;
-  }[];
-};
-
-// ============================================================
-// TRIAL BALANCE
-// ============================================================
-
-export type TrialBalanceAccount = {
-  id: number;
-  code: string;
-  name: string;
-
-  type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
-
-  debit: number;
-  credit: number;
-};
-
-export type TrialBalance = {
-  asOf: string;
-
-  accounts: TrialBalanceAccount[];
-
-  totalDebit: number;
-  totalCredit: number;
-
-  isBalanced: boolean;
-  balanceDifference: number;
-};
-
-export type CashFlowLine = {
-  id: string;
-  date: string;
-  type: "IN" | "OUT";
-  category: string;
-  reference: string;
-  description: string;
-  method: string | null;
-  amount: number;
-};
-
-export type CashFlowCategory = {
-  category: string;
-  amount: number;
-};
-
-export type CashFlow = {
-  from: string;
-  to: string;
-  granularity: "day" | "month";
-  summary: {
-    totalIn: number;
-    totalOut: number;
-    netChange: number;
-    openingBalance: number;
-    closingBalance: number;
-    // Moved between own accounts; not counted as in/out
-    transfers: number;
-  };
-  inflowsByCategory: CashFlowCategory[];
-  outflowsByCategory: CashFlowCategory[];
-  channels: { name: string; in: number; out: number; net: number }[];
-  trend: { period: string; in: number; out: number; net: number; balance: number }[];
-  transactions: CashFlowLine[];
-};
-
-// ============================================================
 // DASHBOARD
 // ============================================================
 
@@ -948,58 +807,6 @@ export type EmployeeInput = {
   salary: number;
 };
 
-export type Owner = {
-  id: number;
-  nationalId: string;
-  fname: string;
-  lname: string;
-  gender: Gender;
-  email: string | null;
-  address: string | null;
-  createdAt: string;
-  updatedAt: string;
-  totalWithdrawn: number;
-  withdrawalCount: number;
-};
-
-export type OwnerInput = {
-  nationalId: string;
-  fname: string;
-  lname: string;
-  gender: Gender;
-  email: string | null;
-  address: string | null;
-};
-
-export type OwnerWithdrawal = {
-  id: number;
-  ownerId: number;
-  amount: number | string;
-  date: string;
-  paymentMethod: "CASH" | "CARD" | "MOBILE" | "BANK";
-  accountId: number | null;
-  reference: string | null;
-  notes: string | null;
-  owner: { id: number; fname: string; lname: string };
-  account: {
-    id: number;
-    bankName: string | null;
-    name: string;
-    number: string;
-    type: Account["type"];
-  } | null;
-};
-
-export type WithdrawalInput = {
-  ownerId: number;
-  amount: number;
-  date: string;
-  paymentMethod: OwnerWithdrawal["paymentMethod"];
-  accountId: number | null;
-  reference: string | null;
-  notes: string | null;
-};
-
 export type SalaryPayment = {
   id: number;
   employeeId: number;
@@ -1028,42 +835,6 @@ export type PaySalariesInput = {
   reference: string | null;
   notes: string | null;
   items: { employeeId: number; amount: number }[];
-};
-
-export type IncomePaymentMethod = "CASH" | "CARD" | "MOBILE" | "BANK";
-
-export type Income = {
-  id: number;
-  title: string;
-  category: string;
-  amount: number | string;
-  date: string;
-  paymentMethod: IncomePaymentMethod;
-  accountId: number | null;
-  reference: string | null;
-  notes: string | null;
-  userId: number;
-  createdAt: string;
-  updatedAt: string;
-  account: {
-    id: number;
-    bankName: string | null;
-    name: string;
-    number: string;
-    type: Account["type"];
-  } | null;
-  user: { id: number; email: string };
-};
-
-export type IncomeInput = {
-  title: string;
-  category: string;
-  amount: number;
-  date: string;
-  paymentMethod: IncomePaymentMethod;
-  accountId: number | null;
-  reference: string | null;
-  notes: string | null;
 };
 
 export type CloseOutPeriod = "day" | "week" | "month" | "year";
@@ -1173,6 +944,13 @@ export type ProfitInsights = {
     averageOrderValue: number;
     averageProfitPerOrder: number;
   };
+  // Stock bought in the period (not part of profit)
+  purchases: {
+    count: number;
+    total: number;
+    paid: number;
+    due: number;
+  };
   trend: {
     period: string;
     revenue: number;
@@ -1205,27 +983,26 @@ export type UserRole = "MANAGER" | "CASHIER";
 
 export type Me = { id: number; email: string; role: UserRole };
 
-export type StaffPerformance = {
-  from: string;
-  to: string;
-  totals: { salesCount: number; netSales: number; refunded: number; itemsSold: number };
-  staff: {
-    userId: number;
-    email: string;
-    role: UserRole;
-    isActive: boolean;
-    salesCount: number;
-    revenue: number;
-    refunded: number;
-    netSales: number;
-    creditGiven: number;
-    itemsSold: number;
-    averageSale: number;
-    returnsCount: number;
-    lastSaleAt: string | null;
-    share: number;
+export type OverdueSales = {
+  overdueAfterDays: number;
+  count: number;
+  totalDue: number;
+  sales: {
+    id: number;
+    invoiceNumber: string;
+    createdAt: string;
+    dueAmount: number;
+    daysSinceSale: number;
+    customer: { id: number; fname: string; lname: string; phone: string } | null;
   }[];
 };
+
+export type StockAdjustmentReason =
+  | "DAMAGE"
+  | "LOSS"
+  | "BREAKAGE"
+  | "COUNT_ERROR"
+  | "OTHER";
 
 export type ProductAlerts = {
   outOfStock: number;
@@ -1240,40 +1017,6 @@ export type SaleSummary = {
   total: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "RETURNED";
   createdAt: string;
-};
-
-export type TaxAuthority =
-  | "SOMALI_REGIONAL_STATE_REVENUE_BUREAU"
-  | "JIGJIGA_CITY_REVENUE_BUREAU";
-
-export type VatPayment = {
-  id: number;
-  authority: TaxAuthority;
-  authorityName: string;
-  amount: number | string;
-  date: string;
-  paymentMethod: "CASH" | "CARD" | "MOBILE" | "BANK";
-  accountId: number | null;
-  reference: string | null;
-  notes: string | null;
-  account: {
-    id: number;
-    bankName: string | null;
-    name: string;
-    number: string;
-    type: Account["type"];
-  } | null;
-  user: { id: number; email: string };
-};
-
-export type VatPaymentInput = {
-  authority: TaxAuthority;
-  amount: number;
-  date: string;
-  paymentMethod: VatPayment["paymentMethod"];
-  accountId: number | null;
-  reference: string | null;
-  notes: string | null;
 };
 
 export type VatSummary = {
@@ -1400,20 +1143,13 @@ export const api = createApi({
     "Customer",
     "Purchase",
     "Expense",
-    "Income",
     "Employee",
     "Payroll",
     "Vat",
     "Me",
-    "Staff",
-    "Owner",
     "Account",
-    "MoneyTransfer",
     "JournalEntry",
-    "BalanceSheet",
-    "TrialBalance",
     "ProfitLoss",
-    "CashFlow",
   ],
 
   // ==========================================================
@@ -1807,12 +1543,6 @@ export const api = createApi({
           id: "LIST",
         },
         {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
-        },
-        {
           type: "JournalEntry",
           id: "LIST",
         },
@@ -1854,67 +1584,7 @@ export const api = createApi({
           id: "LIST",
         },
         {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
-        },
-        {
           type: "JournalEntry",
-          id: "LIST",
-        },
-      ],
-    }),
-
-    paySupplier: builder.mutation<
-      {
-        supplierId: number;
-        supplierName: string;
-        amountPaid: number;
-        remainingPayable: number;
-        updatedPurchaseIds: number[];
-      },
-      PaySupplierInput
-    >({
-      query: (body) => ({
-        url: "purchases/pay-supplier",
-        method: "POST",
-        body,
-      }),
-
-      transformResponse: (response: {
-        success: boolean;
-        message: string;
-        data: {
-          supplierId: number;
-          supplierName: string;
-          amountPaid: number;
-          remainingPayable: number;
-          updatedPurchaseIds: number[];
-        };
-      }) => response.data,
-
-      invalidatesTags: [
-        {
-          type: "Purchase",
-          id: "LIST",
-        },
-        {
-          type: "Supplier",
-          id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
-        },
-        {
-          type: "JournalEntry",
-          id: "LIST",
-        },
-        {
-          type: "Account",
           id: "LIST",
         },
       ],
@@ -1949,12 +1619,6 @@ export const api = createApi({
         {
           type: "Stock",
           id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
         },
         {
           type: "JournalEntry",
@@ -2002,6 +1666,61 @@ export const api = createApi({
     }),
 
     // ========================================================
+    // WRITE OFF EXPIRED STOCK
+    // ========================================================
+
+    // Leave batchIds out to write off every expired batch
+    writeOffExpiredStock: builder.mutation<
+      { batches: number; units: number; total: number; products: string[] },
+      { batchIds?: number[] } | void
+    >({
+      query: (body) => ({
+        url: "stocks/write-off-expired",
+        method: "POST",
+        body: body ?? {},
+      }),
+      invalidatesTags: [
+        { type: "Stock", id: "LIST" },
+        { type: "Product", id: "LIST" },
+        "ProfitLoss",
+        { type: "JournalEntry", id: "LIST" },
+      ],
+    }),
+
+    // ========================================================
+    // ADJUST STOCK (physical count)
+    // ========================================================
+
+    adjustStock: builder.mutation<
+      {
+        productName: string;
+        before: number;
+        after: number;
+        difference: number;
+        value: number;
+        reason: string;
+      },
+      {
+        productId: number;
+        countedQuantity: number;
+        reason: StockAdjustmentReason;
+        notes?: string | null;
+      }
+    >({
+      query: (body) => ({
+        url: "stocks/adjust",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: [
+        { type: "Stock", id: "LIST" },
+        { type: "Product", id: "LIST" },
+        "ProfitLoss",
+        { type: "JournalEntry", id: "LIST" },
+      ],
+    }),
+
+    // ========================================================
     // OPENING STOCK
     // ========================================================
 
@@ -2031,12 +1750,6 @@ export const api = createApi({
         {
           type: "Account",
           id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
         },
         {
           type: "ProfitLoss",
@@ -2167,12 +1880,6 @@ export const api = createApi({
           id: "LIST",
         },
         {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
-        },
-        {
           type: "ProfitLoss",
         },
         {
@@ -2220,12 +1927,6 @@ export const api = createApi({
           id: "LIST",
         },
         {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
-        },
-        {
           type: "ProfitLoss",
         },
       ],
@@ -2240,6 +1941,8 @@ export const api = createApi({
           amount: number;
 
           method: "CASH" | "CARD" | "MOBILE" | "BANK";
+
+          accountId?: number | null;
 
           reference?: string | null;
         };
@@ -2265,13 +1968,11 @@ export const api = createApi({
           id: "LIST",
         },
         {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
-        },
-        {
           type: "JournalEntry",
+          id: "LIST",
+        },
+        {
+          type: "Customer",
           id: "LIST",
         },
       ],
@@ -2299,12 +2000,6 @@ export const api = createApi({
         {
           type: "Stock",
           id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
         },
         {
           type: "JournalEntry",
@@ -2349,12 +2044,6 @@ export const api = createApi({
         {
           type: "SaleReturn",
           id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
         },
         {
           type: "JournalEntry",
@@ -2456,12 +2145,6 @@ export const api = createApi({
           id: "LIST",
         },
         {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
-        },
-        {
           type: "ProfitLoss",
         },
       ],
@@ -2486,12 +2169,6 @@ export const api = createApi({
         {
           type: "JournalEntry",
           id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
         },
         {
           type: "ProfitLoss",
@@ -2522,12 +2199,6 @@ export const api = createApi({
         {
           type: "JournalEntry",
           id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
         },
         {
           type: "ProfitLoss",
@@ -2603,9 +2274,6 @@ export const api = createApi({
           type: "Account",
           id: "LIST",
         },
-        {
-          type: "BalanceSheet",
-        },
       ],
     }),
 
@@ -2624,9 +2292,6 @@ export const api = createApi({
         {
           type: "Account",
           id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
         },
       ],
     }),
@@ -2651,92 +2316,7 @@ export const api = createApi({
           type: "Account",
           id: "LIST",
         },
-        {
-          type: "BalanceSheet",
-        },
       ],
-    }),
-
-    // ========================================================
-    // MONEY TRANSFERS
-    // ========================================================
-
-    getMoneyTransfers: builder.query<MoneyTransfer[], void>({
-      query: () => "money-transfers",
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.map((transfer) => ({
-                type: "MoneyTransfer" as const,
-                id: transfer.id,
-              })),
-              {
-                type: "MoneyTransfer" as const,
-                id: "LIST",
-              },
-            ]
-          : [
-              {
-                type: "MoneyTransfer" as const,
-                id: "LIST",
-              },
-            ],
-    }),
-
-    createMoneyTransfer: builder.mutation<
-      MoneyTransfer,
-      CreateMoneyTransferInput
-    >({
-      query: (body) => ({
-        url: "money-transfers",
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: [
-        {
-          type: "MoneyTransfer",
-          id: "LIST",
-        },
-        {
-          type: "Account",
-          id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
-        },
-      ],
-    }),
-
-    // ========================================================
-    // CashFlow
-    // ========================================================
-
-    getCashFlow: builder.query<CashFlow, { from: string; to: string }>({
-      query: ({ from, to }) =>
-        `cash-flow?from=${encodeURIComponent(
-          from,
-        )}&to=${encodeURIComponent(to)}`,
-      providesTags: ["CashFlow"],
-    }),
-
-    // ========================================================
-    // BALANCE SHEET
-    // ========================================================
-
-    getBalanceSheet: builder.query<BalanceSheet, { asOf: string }>({
-      query: ({ asOf }) => `balance-sheet?asOf=${encodeURIComponent(asOf)}`,
-
-      providesTags: ["BalanceSheet"],
-    }),
-
-    // ========================================================
-    // TRIAL BALANCE
-    // ========================================================
-
-    getTrialBalance: builder.query<TrialBalance, { asOf: string }>({
-      query: ({ asOf }) => `trial?asOf=${encodeURIComponent(asOf)}`,
-
-      providesTags: ["TrialBalance"],
     }),
 
     // ========================================================
@@ -2784,60 +2364,6 @@ export const api = createApi({
       invalidatesTags: [{ type: "Employee", id: "LIST" }],
     }),
 
-    // ========================================================
-    // OWNERS
-    // ========================================================
-
-    getOwners: builder.query<Owner[], void>({
-      query: () => "owners",
-      providesTags: [{ type: "Owner", id: "LIST" }],
-    }),
-
-    createOwner: builder.mutation<Owner, OwnerInput>({
-      query: (body) => ({ url: "owners", method: "POST", body }),
-      invalidatesTags: [{ type: "Owner", id: "LIST" }],
-    }),
-
-    updateOwner: builder.mutation<Owner, OwnerInput & { id: number }>({
-      query: ({ id, ...body }) => ({ url: `owners/${id}`, method: "PUT", body }),
-      invalidatesTags: [{ type: "Owner", id: "LIST" }],
-    }),
-
-    deleteOwner: builder.mutation<void, number>({
-      query: (id) => ({ url: `owners/${id}`, method: "DELETE" }),
-      invalidatesTags: [{ type: "Owner", id: "LIST" }],
-    }),
-
-    getOwnerWithdrawals: builder.query<OwnerWithdrawal[], number | void>({
-      query: (ownerId) => ({
-        url: "owners/withdrawals",
-        params: ownerId ? { ownerId } : {},
-      }),
-      providesTags: [{ type: "Owner", id: "WITHDRAWALS" }],
-    }),
-
-    createWithdrawal: builder.mutation<OwnerWithdrawal, WithdrawalInput>({
-      query: (body) => ({ url: "owners/withdrawals", method: "POST", body }),
-      invalidatesTags: [{ type: "Owner", id: "WITHDRAWALS" },
-        { type: "Owner", id: "LIST" },
-        { type: "Account", id: "LIST" },
-        { type: "JournalEntry", id: "LIST" },
-        { type: "BalanceSheet" },
-        { type: "TrialBalance" },
-      ],
-    }),
-
-    undoWithdrawal: builder.mutation<void, number>({
-      query: (id) => ({ url: `owners/withdrawals/${id}`, method: "DELETE" }),
-      invalidatesTags: [{ type: "Owner", id: "WITHDRAWALS" },
-        { type: "Owner", id: "LIST" },
-        { type: "Account", id: "LIST" },
-        { type: "JournalEntry", id: "LIST" },
-        { type: "BalanceSheet" },
-        { type: "TrialBalance" },
-      ],
-    }),
-
     getSalaryPayments: builder.query<SalaryPayment[], string>({
       query: (period) => ({ url: "payroll", params: { period } }),
       providesTags: [{ type: "Payroll", id: "LIST" }],
@@ -2849,8 +2375,6 @@ export const api = createApi({
         { type: "Payroll", id: "LIST" },
         { type: "Account", id: "LIST" },
         { type: "JournalEntry", id: "LIST" },
-        { type: "BalanceSheet" },
-        { type: "TrialBalance" },
         { type: "ProfitLoss" },
       ],
     }),
@@ -2861,64 +2385,7 @@ export const api = createApi({
         { type: "Payroll", id: "LIST" },
         { type: "Account", id: "LIST" },
         { type: "JournalEntry", id: "LIST" },
-        { type: "BalanceSheet" },
-        { type: "TrialBalance" },
         { type: "ProfitLoss" },
-      ],
-    }),
-
-    // ========================================================
-    // INCOME
-    // ========================================================
-
-    getIncomes: builder.query<Income[], { from?: string; to?: string }>({
-      query: ({ from, to }) => ({
-        url: "incomes",
-        params: {
-          ...(from ? { from } : {}),
-          ...(to ? { to } : {}),
-        },
-      }),
-      providesTags: [{ type: "Income", id: "LIST" }],
-    }),
-
-    createIncome: builder.mutation<Income, IncomeInput>({
-      query: (body) => ({ url: "incomes", method: "POST", body }),
-      invalidatesTags: [
-        { type: "Income" as const, id: "LIST" },
-        { type: "Account" as const, id: "LIST" },
-        { type: "JournalEntry" as const, id: "LIST" },
-        { type: "BalanceSheet" as const },
-        { type: "TrialBalance" as const },
-        { type: "ProfitLoss" as const },
-      ],
-    }),
-
-    updateIncome: builder.mutation<Income, IncomeInput & { id: number }>({
-      query: ({ id, ...body }) => ({
-        url: `incomes/${id}`,
-        method: "PUT",
-        body,
-      }),
-      invalidatesTags: [
-        { type: "Income" as const, id: "LIST" },
-        { type: "Account" as const, id: "LIST" },
-        { type: "JournalEntry" as const, id: "LIST" },
-        { type: "BalanceSheet" as const },
-        { type: "TrialBalance" as const },
-        { type: "ProfitLoss" as const },
-      ],
-    }),
-
-    deleteIncome: builder.mutation<{ message: string }, number>({
-      query: (id) => ({ url: `incomes/${id}`, method: "DELETE" }),
-      invalidatesTags: [
-        { type: "Income" as const, id: "LIST" },
-        { type: "Account" as const, id: "LIST" },
-        { type: "JournalEntry" as const, id: "LIST" },
-        { type: "BalanceSheet" as const },
-        { type: "TrialBalance" as const },
-        { type: "ProfitLoss" as const },
       ],
     }),
 
@@ -2939,7 +2406,7 @@ export const api = createApi({
     }),
 
     // ========================================================
-    // CURRENT USER, STAFF (manager)
+    // CURRENT USER
     // ========================================================
 
     getMe: builder.query<Me, void>({
@@ -2947,14 +2414,15 @@ export const api = createApi({
       providesTags: ["Me"],
     }),
 
-    getStaffPerformance: builder.query<StaffPerformance, { from: string; to: string }>({
-      query: ({ from, to }) => ({ url: "staff/performance", params: { from, to } }),
-      providesTags: ["Staff"],
-    }),
-
     getProductAlerts: builder.query<ProductAlerts, void>({
       query: () => "products/alerts",
       providesTags: [{ type: "Product", id: "LIST" }, { type: "Stock", id: "LIST" }],
+    }),
+
+    // Customer dues still unpaid a week after the sale (header bell)
+    getOverdueSales: builder.query<OverdueSales, void>({
+      query: () => "sales/overdue",
+      providesTags: [{ type: "Sale", id: "LIST" }],
     }),
 
     getSalesSummary: builder.query<SaleSummary[], { from: string; to: string }>({
@@ -2968,46 +2436,6 @@ export const api = createApi({
         params: { from, to },
       }),
       providesTags: ["Vat"],
-    }),
-
-    getVatPayable: builder.query<{ payable: number }, void>({
-      query: () => "reports/vat/payable",
-      providesTags: ["Vat"],
-    }),
-
-    getVatPayments: builder.query<VatPayment[], { from?: string; to?: string } | void>({
-      query: (range) => ({
-        url: "reports/vat/payments",
-        params: {
-          ...(range?.from ? { from: range.from } : {}),
-          ...(range?.to ? { to: range.to } : {}),
-        },
-      }),
-      providesTags: ["Vat"],
-    }),
-
-    createVatPayment: builder.mutation<VatPayment, VatPaymentInput>({
-      query: (body) => ({ url: "reports/vat/payments", method: "POST", body }),
-      invalidatesTags: [
-        "Vat",
-        { type: "Account", id: "LIST" },
-        { type: "JournalEntry", id: "LIST" },
-        { type: "BalanceSheet" },
-        { type: "TrialBalance" },
-        { type: "CashFlow" },
-      ],
-    }),
-
-    undoVatPayment: builder.mutation<void, number>({
-      query: (id) => ({ url: `reports/vat/payments/${id}`, method: "DELETE" }),
-      invalidatesTags: [
-        "Vat",
-        { type: "Account", id: "LIST" },
-        { type: "JournalEntry", id: "LIST" },
-        { type: "BalanceSheet" },
-        { type: "TrialBalance" },
-        { type: "CashFlow" },
-      ],
     }),
 
     getDashboard: builder.query<Dashboard, { date: string }>({
@@ -3066,12 +2494,6 @@ export const api = createApi({
             id: "LIST",
           },
           {
-            type: "BalanceSheet",
-          },
-          {
-            type: "TrialBalance",
-          },
-          {
             type: "ProfitLoss",
           },
         ],
@@ -3097,12 +2519,6 @@ export const api = createApi({
         {
           type: "JournalEntry",
           id: "LIST",
-        },
-        {
-          type: "BalanceSheet",
-        },
-        {
-          type: "TrialBalance",
         },
       ],
     }),
@@ -3133,6 +2549,8 @@ export const {
 
   // Stock
   useGetStocksQuery,
+  useWriteOffExpiredStockMutation,
+  useAdjustStockMutation,
   useGetStockQuery,
   useCreateOpeningStockMutation,
   useUpdateStockMutation,
@@ -3170,7 +2588,6 @@ export const {
   useGetPurchaseQuery,
   useCreatePurchaseMutation,
   useUpdatePurchaseMutation,
-  usePaySupplierMutation,
   useCancelPurchaseMutation,
 
   // Expenses
@@ -3187,42 +2604,23 @@ export const {
   useGetLedgerBalancesQuery,
   useGetVatReportQuery,
   useGetProductAlertsQuery,
+  useGetOverdueSalesQuery,
   useGetMeQuery,
-  useGetStaffPerformanceQuery,
   useGetSalesSummaryQuery,
-  useGetVatPayableQuery,
-  useGetVatPaymentsQuery,
-  useCreateVatPaymentMutation,
-  useUndoVatPaymentMutation,
   useGetProfitInsightsQuery,
   useGetCloseOutQuery,
-  useGetIncomesQuery,
   useGetEmployeesQuery,
   useCreateEmployeeMutation,
   useUpdateEmployeeMutation,
   useDeleteEmployeeMutation,
   useGetSalaryPaymentsQuery,
-  useGetOwnersQuery,
-  useCreateOwnerMutation,
-  useUpdateOwnerMutation,
-  useDeleteOwnerMutation,
-  useGetOwnerWithdrawalsQuery,
-  useCreateWithdrawalMutation,
-  useUndoWithdrawalMutation,
   usePaySalariesMutation,
   useUndoSalaryPaymentMutation,
-  useCreateIncomeMutation,
-  useUpdateIncomeMutation,
-  useDeleteIncomeMutation,
   useCreateAccountMutation,
   useUpdateAccountMutation,
   useDeleteAccountMutation,
-  useGetMoneyTransfersQuery,
-  useCreateMoneyTransferMutation,
 
   // Reports
-  useGetBalanceSheetQuery,
-  useGetTrialBalanceQuery,
   useGetProfitLossQuery,
 
   // Dashboard
@@ -3235,5 +2633,4 @@ export const {
   useDeleteJournalEntryMutation,
 
   // cash flow
-  useGetCashFlowQuery,
 } = api;

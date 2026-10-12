@@ -1,15 +1,31 @@
-import { useState, type ChangeEvent } from "react";
-import { FiArrowLeft, FiX } from "react-icons/fi";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import {
   useAddSalePaymentMutation,
+  useGetAccountsQuery,
   useGetSaleQuery,
 } from "../../../api/api";
-
-type PaymentMethod = "CASH" | "CARD" | "MOBILE" | "BANK";
+import {
+  Card,
+  ErrorBox,
+  MethodAndAccount,
+  ModalFooter,
+  ModalHeader,
+  SummaryRow,
+} from "./SaleModalParts";
+import {
+  FIELD,
+  LABEL,
+  apiErrorMessage,
+  customerName,
+  etb,
+  type PaymentMethod,
+} from "./saleHelpers";
 
 export default function ResumeSale() {
   const navigate = useNavigate();
+  const close = () => navigate(-1);
   const { id } = useParams<{ id: string }>();
 
   const saleId = Number(id);
@@ -22,75 +38,50 @@ export default function ResumeSale() {
     skip: !id || Number.isNaN(saleId),
   });
 
+  const { data: accounts = [] } = useGetAccountsQuery();
+
   const [addSalePayment, { isLoading: isSaving }] =
     useAddSalePaymentMutation();
 
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
+  const [accountId, setAccountId] = useState<number | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentError, setPaymentError] = useState("");
 
-  const [paymentAmount, setPaymentAmount] =
-    useState("");
-
-  const [paymentError, setPaymentError] =
-    useState("");
-
-  if (isLoading) {
+  if (isLoading || isError || !sale) {
     return (
-      <div className="flex min-h-75 items-center justify-center">
-        <p className="text-gray-500">
-          Loading sale...
+      <>
+        <ModalHeader title="Resume Sale" onClose={close} />
+        <p className={`p-6 text-center text-sm ${isLoading ? "text-[#646B72]" : "text-red-500"}`}>
+          {isLoading ? "Loading sale..." : "Unable to load sale details."}
         </p>
-      </div>
+      </>
     );
   }
 
-  if (isError || !sale) {
-    return (
-      <div className="rounded-xl bg-white p-6">
-        <p className="text-red-500">
-          Unable to load sale details.
-        </p>
-
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="mt-4 rounded-lg border border-gray-300 px-4 py-2"
-        >
-          Go Back
-        </button>
-      </div>
-    );
-  }
-
-  const subtotal = Number(sale.subtotal) || 0;
-  const discount = Number(sale.discount) || 0;
-  const tax = Number(sale.tax) || 0;
   const total = Number(sale.total) || 0;
-
-  const previouslyPaid =
-    Number(sale.paidAmount) || 0;
-
-  const due = Math.max(
-    total - previouslyPaid,
-    0,
-  );
-
-  const enteredPayment =
-    Number(paymentAmount) || 0;
+  const previouslyPaid = Number(sale.paidAmount) || 0;
+  const due = Math.max(total - previouslyPaid, 0);
+  const enteredPayment = Number(paymentAmount) || 0;
 
   const onSavePayment = async () => {
     setPaymentError("");
 
     if (enteredPayment <= 0) {
+      setPaymentError("Please enter a payment amount.");
+      return;
+    }
+
+    if (enteredPayment > due + 0.005) {
       setPaymentError(
-        "Please enter a payment amount.",
+        `Payment cannot be greater than the remaining due of ${etb(due)}.`,
       );
       return;
     }
 
-    if (enteredPayment > due) {
+    if (paymentMethod !== "CASH" && !accountId) {
       setPaymentError(
-        `Payment cannot be greater than the remaining due of ETB ${due.toFixed(2)}.`,
+        `Select the ${paymentMethod === "MOBILE" ? "wallet or merchant" : "bank"} account that received the money.`,
       );
       return;
     }
@@ -101,285 +92,131 @@ export default function ResumeSale() {
         data: {
           amount: enteredPayment,
           method: paymentMethod,
+          accountId: paymentMethod === "CASH" ? null : accountId,
           reference: null,
         },
       }).unwrap();
 
       navigate("/sales");
     } catch (error) {
-      console.error(
-        "Failed to save payment:",
-        error,
-      );
-
-      setPaymentError(
-        "Failed to save payment. Please try again.",
-      );
+      console.error("Failed to save payment:", error);
+      setPaymentError(apiErrorMessage(error, "Failed to save payment. Please try again."));
     }
   };
 
   return (
-    <div className="rounded-xl bg-white">
-      {/* HEADER */}
-      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="rounded-lg p-2 hover:bg-gray-100"
-          >
-            <FiArrowLeft size={20} />
-          </button>
+    <>
+      <ModalHeader
+        title="Resume Sale"
+        subtitle={`${sale.invoiceNumber} · ${customerName(sale.customer)}`}
+        onClose={close}
+      />
 
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">
-              Resume Sale
-            </h1>
-
-            <p className="text-sm text-gray-500">
-              {sale.invoiceNumber}
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="rounded-lg p-2 hover:bg-gray-100"
-        >
-          <FiX size={20} />
-        </button>
-      </div>
-
-      {/* PRODUCTS */}
-      <div className="px-6 py-5">
-        <h2 className="mb-4 text-sm font-semibold text-gray-900">
-          Products
-        </h2>
-
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="w-full">
+      <div className="p-5 space-y-4">
+        {/* ---------------- Products ---------------- */}
+        <Card className="overflow-hidden">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-gray-50 text-sm text-gray-500">
-                <th className="px-4 py-3 text-left">
-                  Product
-                </th>
-
-                <th className="px-4 py-3 text-right">
-                  Price
-                </th>
-
-                <th className="px-4 py-3 text-center">
-                  Qty
-                </th>
-
-                <th className="px-4 py-3 text-right">
-                  Amount
-                </th>
+              <tr className="bg-gray-50 border-b border-gray-200 text-left font-semibold text-gray-700">
+                <th className="px-4 py-3">Product</th>
+                <th className="px-4 py-3 text-right">Price</th>
+                <th className="px-4 py-3 text-center">Qty</th>
+                <th className="px-4 py-3 text-right">Amount</th>
               </tr>
             </thead>
-
             <tbody>
               {sale.items.map((item) => {
-                const price =
-                  Number(item.unitPrice) || 0;
-
-                const quantity =
-                  Number(item.quantity) || 0;
-
-                const amount =
-                  price * quantity;
+                const price = Number(item.unitPrice) || 0;
+                const quantity = Number(item.quantity) || 0;
 
                 return (
-                  <tr
-                    key={item.id}
-                    className="border-b last:border-0"
-                  >
-                    <td className="px-4 py-4">
-                      <p className="font-medium text-gray-900">
-                        {item.product?.productName ??
-                          "Product"}
-                      </p>
+                  <tr key={item.id} className="border-b border-gray-100 last:border-0">
+                    <td className="px-4 py-3 font-medium text-text-two">
+                      {item.product?.productName ?? "Product"}
                     </td>
-
-                    <td className="px-4 py-4 text-right text-gray-700">
-                      ${price.toFixed(2)}
-                    </td>
-
-                    <td className="px-4 py-4 text-center text-gray-700">
-                      {quantity}
-                    </td>
-
-                    <td className="px-4 py-4 text-right font-medium text-gray-900">
-                      ${amount.toFixed(2)}
+                    <td className="px-4 py-3 text-right tabular-nums">{etb(price)}</td>
+                    <td className="px-4 py-3 text-center">{quantity}</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums">
+                      {etb(price * quantity)}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        </Card>
+
+        {/* ---------------- Totals ---------------- */}
+        <div className="flex justify-end">
+          <Card className="w-full sm:w-80 px-4 py-3">
+            <SummaryRow label="Subtotal" value={etb(sale.subtotal)} />
+            <SummaryRow label="Discount" value={`− ${etb(sale.discount)}`} />
+            <SummaryRow label="Tax" value={etb(sale.tax)} />
+            <SummaryRow label="Total" value={etb(total)} strong />
+            <SummaryRow label="Previously Paid" value={etb(previouslyPaid)} tone="green" />
+            <SummaryRow label="Due" value={etb(due)} tone="red" strong />
+          </Card>
         </div>
-      </div>
 
-      {/* TOTALS */}
-      <div className="border-t border-gray-200 px-6 py-5">
-        <div className="ml-auto w-full space-y-3 md:w-80">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">
-              Subtotal
-            </span>
+        {/* ---------------- Payment ---------------- */}
+        <Card className="p-4 space-y-3">
+          <MethodAndAccount
+            methodLabel="Payment Method"
+            method={paymentMethod}
+            onMethodChange={(method) => {
+              setPaymentMethod(method);
+              setPaymentError("");
+            }}
+            accountId={accountId}
+            onAccountChange={setAccountId}
+            accounts={accounts}
+            disabled={isSaving}
+          />
 
-            <span className="font-medium text-gray-900">
-              ${subtotal.toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">
-              Discount
-            </span>
-
-            <span className="font-medium text-gray-900">
-              ${discount.toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">
-              Tax
-            </span>
-
-            <span className="font-medium text-gray-900">
-              ${tax.toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex justify-between border-t pt-3">
-            <span className="text-lg font-bold text-gray-900">
-              TOTAL
-            </span>
-
-            <span className="text-lg font-bold text-gray-900">
-              ${total.toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">
-              Previously Paid
-            </span>
-
-            <span className="font-medium text-gray-900">
-              ${previouslyPaid.toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex justify-between border-t pt-3">
-            <span className="font-semibold text-gray-900">
-              Due
-            </span>
-
-            <span className="font-bold text-red-600">
-              ${due.toFixed(2)}
-            </span>
-          </div>
-
-          {/* PAYMENT */}
-          <div className="mt-5 space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Payment Method
-              </label>
-
-              <select
-                value={paymentMethod}
-                onChange={(
-                  e: ChangeEvent<HTMLSelectElement>,
-                ) => {
-                  setPaymentMethod(
-                    e.target.value as PaymentMethod,
-                  );
-
-                  setPaymentError("");
-                }}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="CASH">
-                  CASH
-                </option>
-
-                <option value="CARD">
-                  CARD
-                </option>
-
-                <option value="MOBILE">
-                  MOBILE
-                </option>
-
-                <option value="BANK">
-                  BANK
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Payment Amount
-              </label>
-
+          <div>
+            <label htmlFor="payment-amount" className={LABEL}>
+              Payment Amount <span className="text-red-500">*</span>
+            </label>
+            <div className="flex gap-2">
               <input
+                id="payment-amount"
                 type="number"
                 min="0"
                 max={due}
                 step="0.01"
                 value={paymentAmount}
                 onChange={(e) => {
-                  setPaymentAmount(
-                    e.target.value,
-                  );
-
+                  setPaymentAmount(e.target.value);
                   setPaymentError("");
                 }}
                 placeholder="0.00"
-                className={`w-full rounded-lg border px-4 py-2.5 text-right focus:outline-none focus:ring-2 ${
-                  paymentError
-                    ? "border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:ring-blue-500"
-                }`}
+                inputMode="decimal"
+                disabled={isSaving}
+                className={FIELD}
               />
-
-              {paymentError && (
-                <p className="mt-1 text-sm text-red-600">
-                  {paymentError}
-                </p>
-              )}
+              <button
+                type="button"
+                onClick={() => setPaymentAmount(due.toFixed(2))}
+                disabled={isSaving || due <= 0}
+                className="shrink-0 px-3 rounded-md border border-[#FE9F43] text-[#FE9F43] text-sm font-medium cursor-pointer hover:bg-[#FE9F43] hover:text-white transition-colors disabled:opacity-50"
+              >
+                Pay full
+              </button>
             </div>
           </div>
-        </div>
+
+          <ErrorBox message={paymentError} />
+        </Card>
       </div>
 
-      {/* ACTIONS */}
-      <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          disabled={isSaving}
-          className="rounded-lg border border-gray-300 px-5 py-2.5 hover:bg-gray-50 disabled:opacity-50"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          onClick={onSavePayment}
-          disabled={isSaving || due <= 0}
-          className="rounded-lg bg-gray-900 px-5 py-2.5 text-white hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSaving
-            ? "Saving..."
-            : "Save Payment"}
-        </button>
-      </div>
-    </div>
+      <ModalFooter
+        onCancel={close}
+        action={{
+          label: isSaving ? "Saving..." : "Save Payment",
+          onClick: onSavePayment,
+          disabled: isSaving || due <= 0,
+        }}
+      />
+    </>
   );
 }

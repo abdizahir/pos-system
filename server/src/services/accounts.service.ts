@@ -72,6 +72,18 @@ function ledgerSource(entry: {
   return "Journal";
 }
 
+// Category shown on a statement line: the category picked when the
+// income or expense was recorded, otherwise what kind of entry it is.
+function ledgerCategory(entry: Parameters<typeof ledgerSource>[0] & {
+  expense: { category: string } | null;
+  income: { category: string } | null;
+}) {
+  if (entry.income?.category) return entry.income.category;
+  if (entry.expense?.category) return entry.expense.category;
+  if (entry.saleId && !entry.saleReturnId) return "Sales";
+  return ledgerSource(entry);
+}
+
 export const accountService = {
   // --------------------------------------------------
   // GET ALL ACCOUNTS
@@ -224,6 +236,7 @@ export const accountService = {
         journalEntryId: entry.id,
         date: entry.date.toISOString(),
         source: ledgerSource(entry),
+        category: ledgerCategory(entry),
         reference: entry.reference,
         description: entry.description ?? "",
         account: line.paymentAccount,

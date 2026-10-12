@@ -508,19 +508,6 @@ export default function PosPage() {
               </p>
             </div>
 
-            {user && (
-              <div className="flex items-center gap-2 rounded-full border border-[#E6EAED] bg-white py-1 pl-1 pr-4 shadow-sm">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FE9F43]/15 text-xs font-bold text-[#E8862A]">
-                  {user.email?.slice(0, 2).toUpperCase() || "US"}
-                </span>
-                <div className="leading-tight">
-                  <p className="text-xs text-[#646B72]">Cashier</p>
-                  <p className="text-sm font-medium text-text-two">
-                    {user.email}
-                  </p>
-                </div>
-              </div>
-            )}
           </header>
 
           {saleSuccess && (

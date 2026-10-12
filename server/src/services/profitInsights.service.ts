@@ -257,6 +257,17 @@ export async function getProfitInsights(from: Date, to: Date) {
     expenseMap.set(label, (expenseMap.get(label) ?? 0) + account.amount);
   }
 
+  // Stock bought from suppliers in the period. Not part of profit:
+  // its cost counts as cost of goods sold when the items are sold.
+  const purchaseTotals = await prisma.purchase.aggregate({
+    where: {
+      createdAt: { gte: from, lte: to },
+      status: { not: "CANCELLED" },
+    },
+    _count: { _all: true },
+    _sum: { total: true, paidAmount: true, dueAmount: true },
+  });
+
   const expenseBreakdown = Array.from(expenseMap, ([name, amount]) => ({ name, amount }))
     .filter((row) => Math.abs(row.amount) > 0.005)
     .sort((a, b) => b.amount - a.amount);
@@ -279,6 +290,12 @@ export async function getProfitInsights(from: Date, to: Date) {
       profit: itemsProfit,
       averageOrderValue: orderCount ? ordersRevenue / orderCount : 0,
       averageProfitPerOrder: orderCount ? itemsProfit / orderCount : 0,
+    },
+    purchases: {
+      count: purchaseTotals._count._all,
+      total: Number(purchaseTotals._sum.total ?? 0),
+      paid: Number(purchaseTotals._sum.paidAmount ?? 0),
+      due: Number(purchaseTotals._sum.dueAmount ?? 0),
     },
     trend,
     products: productList,

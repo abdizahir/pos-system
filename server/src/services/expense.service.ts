@@ -1,8 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import {
-  getPaymentChartCode,
   isMobileAccountType,
-  paymentAccountIdFor,
+  RECORD_ONLY_CHART_CODE,
 } from "../utils/payment-accounts.js";
 
 import {
@@ -13,7 +12,6 @@ import {
 } from "../repositories/expense.repository.js";
 
 import { Prisma } from "../../generated/prisma/client.js";
-import { availableBalance } from "../utils/money-source.js";
 
 // ============================================================
 // PAYMENT METHODS
@@ -103,17 +101,12 @@ async function getExpenseAccountId(
 
 async function getPaymentAccountId(
   tx: Prisma.TransactionClient,
-  paymentMethod: PaymentMethod,
-  accountId?: number | null,
+  _paymentMethod: PaymentMethod,
+  _accountId?: number | null,
 ) {
-  return getChartAccountId(
-    tx,
-    await getPaymentChartCode(
-      tx,
-      paymentMethod,
-      accountId,
-    ),
-  );
+  // Record-only: every outgoing payment is booked against
+  // Owner's Capital, whatever the method, so no account goes down.
+  return getChartAccountId(tx, RECORD_ONLY_CHART_CODE);
 }
 
 // ============================================================
@@ -203,32 +196,14 @@ async function validateActualPaymentAccount(
 // ============================================================
 
 async function updateActualAccountBalance(
-  tx: Prisma.TransactionClient,
-  paymentMethod: PaymentMethod,
-  accountId: number | null,
-  amount: Prisma.Decimal | number,
-  direction: "increment" | "decrement",
+  _tx: Prisma.TransactionClient,
+  _paymentMethod: PaymentMethod,
+  _accountId: number | null,
+  _amount: number | Prisma.Decimal,
+  _direction: "increment" | "decrement",
 ) {
-  if (
-    paymentMethod === "CASH" ||
-    accountId === null
-  ) {
-    return;
-  }
-
-  await tx.account.update({
-    where: {
-      id: accountId,
-    },
-    data: {
-      currentBalance: {
-        [direction]:
-          amount instanceof Prisma.Decimal
-            ? amount
-            : new Prisma.Decimal(amount),
-      },
-    },
-  });
+  // Record-only: purchases, supplier payments and expenses never
+  // change an account's balance, so there is nothing to update.
 }
 
 // ============================================================
@@ -259,26 +234,6 @@ async function createExpenseJournal(
   ) {
     throw new Error(
       "Invalid payment method",
-    );
-  }
-
-  // ----------------------------------------------------------
-  // ENOUGH MONEY?
-  // ----------------------------------------------------------
-  // On edit the old entry is already removed, so its amount is
-  // back in the balance here.
-
-  const available = await availableBalance(
-    tx,
-    expense.paymentMethod,
-    expense.accountId,
-  ).catch((error: unknown) => {
-    throw new Error(error instanceof Error ? error.message : "Invalid payment account");
-  });
-
-  if (Number(expense.amount) > available + 0.005) {
-    throw new Error(
-      `Not enough money. Expense is ETB ${Number(expense.amount).toFixed(2)} but only ETB ${available.toFixed(2)} is available.`,
     );
   }
 
@@ -335,11 +290,7 @@ async function createExpenseJournal(
       accountId:
         paymentAccountId,
 
-      paymentAccountId:
-        paymentAccountIdFor(
-          expense.paymentMethod,
-          expense.accountId,
-        ),
+      paymentAccountId: null,
 
       debit: 0,
 

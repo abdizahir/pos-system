@@ -4,7 +4,6 @@ import {
   getPurchasesController,
   getPurchaseByIdController,
   createPurchaseController,
-  paySupplierController,
   updatePurchaseController,
   cancelPurchaseController,
 } from "../controllers/purchase.controller.js";
@@ -36,13 +35,6 @@ router.post(
   "/",
   authenticate,
   createPurchaseController,
-);
-
-// POST /api/purchases/pay-supplier
-router.post(
-  "/pay-supplier",
-  authenticate,
-  paySupplierController,
 );
 
 // PATCH /api/purchases/:id

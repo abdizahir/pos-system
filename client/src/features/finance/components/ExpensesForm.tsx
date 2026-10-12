@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useDispatch } from "react-redux";
 
 import Button from "../../../components/Button";
 
 import {
-  useGetAccountsQuery,
   useGetExpenseQuery,
   useCreateExpenseMutation,
   useUpdateExpenseMutation,
@@ -18,8 +17,6 @@ type ExpenseFormProps = {
   mode: "create" | "edit";
   expenseId?: number;
 };
-
-type PaymentMethod = "" | "CASH" | "CARD" | "MOBILE" | "BANK";
 
 export default function ExpenseForm({ mode, expenseId }: ExpenseFormProps) {
   const dispatch = useDispatch();
@@ -43,52 +40,17 @@ export default function ExpenseForm({ mode, expenseId }: ExpenseFormProps) {
 
   const [updateExpense, { isLoading: isUpdating }] = useUpdateExpenseMutation();
 
-  const { data: accounts = [] } = useGetAccountsQuery();
-
   // --------------------------------------------------
   // Error
   // --------------------------------------------------
 
   const [expenseError, setExpenseError] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("");
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
-    null,
-  );
-
-  const bankAccounts = useMemo(
-    () =>
-      accounts.filter(
-        (account) => account.type === "BANK" && account.status === "ACTIVE",
-      ),
-    [accounts],
-  );
-
-  const walletAccounts = useMemo(
-    () =>
-      accounts.filter(
-        (account) => (account.type === "WALLET" || account.type === "MERCHANT") && account.status === "ACTIVE",
-      ),
-    [accounts],
-  );
 
   // --------------------------------------------------
   // Loading
   // --------------------------------------------------
 
   const isLoading = isCreating || isUpdating || isExpenseLoading;
-
-  useEffect(() => {
-    if (mode === "edit" && expense) {
-      setPaymentMethod(expense.paymentMethod);
-      setSelectedAccountId(expense.accountId ?? null);
-      return;
-    }
-
-    if (mode === "create") {
-      setPaymentMethod("");
-      setSelectedAccountId(null);
-    }
-  }, [expense, mode]);
 
   // --------------------------------------------------
   // Submit
@@ -148,25 +110,6 @@ export default function ExpenseForm({ mode, expenseId }: ExpenseFormProps) {
       return;
     }
 
-    if (
-      paymentMethod !== "CASH" &&
-      paymentMethod !== "CARD" &&
-      paymentMethod !== "MOBILE" &&
-      paymentMethod !== "BANK"
-    ) {
-      setExpenseError("Please select a valid payment method.");
-      return;
-    }
-
-    if (paymentMethod !== "CASH" && selectedAccountId === null) {
-      setExpenseError(
-        `Please select a ${
-          paymentMethod === "MOBILE" ? "wallet or merchant" : "bank account"
-        }.`,
-      );
-      return;
-    }
-
     // --------------------------------------------------
     // Expense data
     // --------------------------------------------------
@@ -176,8 +119,6 @@ export default function ExpenseForm({ mode, expenseId }: ExpenseFormProps) {
       category: category.trim(),
       amount: Number(amount),
       date,
-      paymentMethod,
-      accountId: paymentMethod === "CASH" ? null : selectedAccountId,
       reference: reference.trim() || null,
       notes: notes.trim() || null,
     };
@@ -397,89 +338,6 @@ export default function ExpenseForm({ mode, expenseId }: ExpenseFormProps) {
             disabled={isLoading}
           />
         </div>
-
-        {/* ========================================
-            PAYMENT METHOD
-        ======================================== */}
-
-        <div className="flex flex-col items-start mb-4">
-          <label htmlFor="paymentMethod" className="text-sm font-medium mb-2">
-            Payment Method <span className="text-red-500">*</span>
-          </label>
-
-          <select
-            id="paymentMethod"
-            name="paymentMethod"
-            value={paymentMethod}
-            onChange={(event) => {
-              const value = event.target.value as PaymentMethod;
-              setPaymentMethod(value);
-              setSelectedAccountId(null);
-            }}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 outline-none focus:border-[#FE9F43] bg-white disabled:bg-gray-100"
-            required
-            disabled={isLoading}
-          >
-            <option value="">Select payment method</option>
-
-            <option value="CASH">Cash</option>
-
-            <option value="CARD">Card</option>
-
-            <option value="MOBILE">Mobile</option>
-
-            <option value="BANK">Bank</option>
-          </select>
-        </div>
-
-        {paymentMethod !== "" && paymentMethod !== "CASH" && (
-          <div className="flex flex-col items-start mb-4">
-            <label htmlFor="accountId" className="text-sm font-medium mb-2">
-              {paymentMethod === "MOBILE" ? "Wallet / Merchant Account" : "Bank Account"}{" "}
-              <span className="text-red-500">*</span>
-            </label>
-
-            <select
-              id="accountId"
-              name="accountId"
-              value={selectedAccountId ?? ""}
-              onChange={(event) => {
-                const value = event.target.value;
-                setSelectedAccountId(value ? Number(value) : null);
-              }}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 outline-none focus:border-[#FE9F43] bg-white disabled:bg-gray-100"
-              required
-              disabled={isLoading}
-            >
-              <option value="">
-                Select {paymentMethod === "MOBILE" ? "wallet or merchant" : "bank account"}
-              </option>
-
-              {(paymentMethod === "MOBILE"
-                ? walletAccounts
-                : bankAccounts
-              ).map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.bankName
-                    ? `${account.bankName} - ${account.name} (${account.number})`
-                    : `${account.name} (${account.number})`}
-                  {account.type === "MERCHANT" ? " · Merchant" : account.type === "WALLET" ? " · Wallet" : ""}
-                </option>
-              ))}
-            </select>
-
-            {(paymentMethod === "MOBILE"
-              ? walletAccounts
-              : bankAccounts
-            ).length === 0 && (
-              <p className="mt-1 text-xs text-red-500">
-                No active{" "}
-                {paymentMethod === "MOBILE" ? "wallet or merchant" : "bank accounts"}{" "}
-                available.
-              </p>
-            )}
-          </div>
-        )}
 
         {/* ========================================
             REFERENCE

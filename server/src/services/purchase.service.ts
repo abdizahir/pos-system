@@ -1,9 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import {
-  getLedgerBalance,
-  getPaymentChartCode,
   isMobileAccountType,
-  paymentAccountIdFor,
+  RECORD_ONLY_CHART_CODE,
 } from "../utils/payment-accounts.js";
 import { purchaseRepository } from "../repositories/purchase.repository.js";
 import { Prisma } from "../../generated/prisma/client.js";
@@ -48,13 +46,6 @@ type UpdatePurchaseInput = {
   accountId?: number | null;
   notes?: string;
   items?: PurchaseItemInput[];
-};
-
-type PaySupplierInput = {
-  supplierId: number;
-  amount: number;
-  paymentMethod: PaymentMethod;
-  accountId?: number | null;
 };
 
 const PAYMENT_METHODS = [
@@ -167,17 +158,12 @@ async function getChartAccountId(
 
 async function getPaymentChartAccountId(
   tx: Prisma.TransactionClient,
-  paymentMethod: PaymentMethod,
-  accountId?: number | null,
+  _paymentMethod: PaymentMethod,
+  _accountId?: number | null,
 ) {
-  return getChartAccountId(
-    tx,
-    await getPaymentChartCode(
-      tx,
-      paymentMethod,
-      accountId,
-    ),
-  );
+  // Record-only: every outgoing payment is booked against
+  // Owner's Capital, whatever the method, so no account goes down.
+  return getChartAccountId(tx, RECORD_ONLY_CHART_CODE);
 }
 
 async function validateActualPaymentAccount(
@@ -196,13 +182,15 @@ async function validateActualPaymentAccount(
     };
   }
 
+  // Record-only: a paid amount without a method is booked as cash
   if (
     paymentMethod === undefined ||
     paymentMethod === null
   ) {
-    throw new Error(
-      "Payment method is required when paid amount is greater than 0",
-    );
+    return {
+      paymentMethod: "CASH" as const,
+      accountId: null,
+    };
   }
 
   if (
@@ -289,139 +277,14 @@ async function validateActualPaymentAccount(
 }
 
 async function updateActualAccountBalance(
-  tx: Prisma.TransactionClient,
-  paymentMethod: PaymentMethod | null,
-  accountId: number | null,
-  amount: number | Prisma.Decimal,
-  direction: "increment" | "decrement",
+  _tx: Prisma.TransactionClient,
+  _paymentMethod: PaymentMethod | null,
+  _accountId: number | null,
+  _amount: number | Prisma.Decimal,
+  _direction: "increment" | "decrement",
 ) {
-  if (
-    paymentMethod === null ||
-    paymentMethod === "CASH" ||
-    accountId === null
-  ) {
-    return;
-  }
-
-  if (direction === "decrement") {
-    const account =
-      await tx.account.findUnique({
-        where: {
-          id: accountId,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-    if (!account) {
-      throw new Error(
-        "Selected account not found",
-      );
-    }
-
-    const currentBalance =
-      await getLedgerBalance(
-        tx,
-        accountId,
-      );
-    const amountValue =
-      amount instanceof Prisma.Decimal
-        ? Number(amount)
-        : amount;
-
-    if (
-      amountValue > currentBalance
-    ) {
-      throw new Error(
-        `Insufficient account balance. Available balance: ETB ${currentBalance.toFixed(
-          2,
-        )}.`,
-      );
-    }
-  }
-
-  await tx.account.update({
-    where: {
-      id: accountId,
-    },
-    data: {
-      currentBalance: {
-        [direction]:
-          amount instanceof Prisma.Decimal
-            ? amount
-            : new Prisma.Decimal(amount),
-      },
-    },
-  });
-}
-
-async function createPurchasePaymentJournal(
-  tx: Prisma.TransactionClient,
-  purchase: {
-    id: number;
-    reference: string;
-  },
-  paymentDate: Date,
-  amount: number,
-  paymentMethod: PaymentMethod,
-  accountId: number | null,
-) {
-  if (
-    !Number.isFinite(amount) ||
-    amount <= 0
-  ) {
-    throw new Error(
-      "Supplier payment amount must be greater than 0",
-    );
-  }
-
-  const accountsPayableAccountId =
-    await getChartAccountId(
-      tx,
-      "2000",
-    );
-
-  const paymentAccountId =
-    await getPaymentChartAccountId(
-      tx,
-      paymentMethod,
-      accountId,
-    );
-
-  await tx.journalEntry.create({
-    data: {
-      date: paymentDate,
-      reference: `${purchase.reference}-PAY`,
-      description: `Supplier payment for purchase ${purchase.reference}`,
-      purchaseId: purchase.id,
-      lines: {
-        create: [
-          {
-            accountId:
-              accountsPayableAccountId,
-            debit:
-              new Prisma.Decimal(amount),
-            credit:
-              new Prisma.Decimal(0),
-          },
-          {
-            accountId:
-              paymentAccountId,
-            paymentAccountId:
-              paymentAccountIdFor(
-                paymentMethod,
-                accountId,
-              ),
-            debit:
-              new Prisma.Decimal(0),
-            credit:
-              new Prisma.Decimal(amount),
-          },
-        ],
-      },
-    },
-  });
+  // Record-only: purchases, supplier payments and expenses never
+  // change an account's balance, so there is nothing to update.
 }
 
 // ============================================================
@@ -514,11 +377,7 @@ async function createPurchaseJournal(
     journalLines.push({
       accountId:
         paymentAccountId,
-      paymentAccountId:
-        paymentAccountIdFor(
-          purchase.paymentMethod,
-          purchase.accountId,
-        ),
+      paymentAccountId: null,
       debit: 0,
       credit: paidAmount,
     });
@@ -670,11 +529,7 @@ async function createPurchaseReversalJournal(
     journalLines.push({
       accountId:
         paymentAccountId,
-      paymentAccountId:
-        paymentAccountIdFor(
-          purchase.paymentMethod,
-          purchase.accountId,
-        ),
+      paymentAccountId: null,
       debit: paidAmount,
       credit: 0,
     });
@@ -1113,11 +968,12 @@ export const purchaseService = {
       );
     }
 
+    // Purchases are paid in full: paid = quantity × price (− discount + tax)
     if (
-      paidAmount > total
+      Math.abs(paidAmount - total) > 0.005
     ) {
       throw new Error(
-        "Paid amount cannot be greater than purchase total",
+        `Paid amount must equal the purchase total (ETB ${total.toFixed(2)}).`,
       );
     }
 
@@ -1581,12 +1437,12 @@ export const purchaseService = {
             existingPurchase.total,
           );
 
+        // Purchases are paid in full
         if (
-          data.paidAmount >
-          newTotal
+          Math.abs(data.paidAmount - newTotal) > 0.005
         ) {
           throw new Error(
-            "Paid amount cannot be greater than purchase total",
+            `Paid amount must equal the purchase total (ETB ${newTotal.toFixed(2)}).`,
           );
         }
 
@@ -1986,11 +1842,12 @@ export const purchaseService = {
       );
     }
 
+    // Purchases are paid in full: paid = quantity × price (− discount + tax)
     if (
-      paidAmount > total
+      Math.abs(paidAmount - total) > 0.005
     ) {
       throw new Error(
-        "Paid amount cannot be greater than purchase total",
+        `Paid amount must equal the purchase total (ETB ${total.toFixed(2)}).`,
       );
     }
 
@@ -2661,241 +2518,6 @@ export const purchaseService = {
             },
           },
         });
-      },
-    );
-  },
-
-  // ==========================================================
-  // PAY SUPPLIER
-  // ==========================================================
-
-  async paySupplier(
-    data: PaySupplierInput,
-  ) {
-    if (
-      !Number.isInteger(
-        data.supplierId,
-      ) ||
-      data.supplierId <= 0
-    ) {
-      throw new Error(
-        "Invalid supplier ID",
-      );
-    }
-
-    if (
-      !Number.isFinite(
-        data.amount,
-      ) ||
-      data.amount <= 0
-    ) {
-      throw new Error(
-        "Payment amount must be greater than 0",
-      );
-    }
-
-    if (
-      !isPaymentMethod(
-        data.paymentMethod,
-      )
-    ) {
-      throw new Error(
-        "Invalid payment method",
-      );
-    }
-
-    const supplier =
-      await prisma.supplier.findUnique({
-        where: {
-          id: data.supplierId,
-        },
-        select: {
-          id: true,
-          name: true,
-        },
-      });
-
-    if (!supplier) {
-      throw new Error(
-        "Supplier not found",
-      );
-    }
-
-    return prisma.$transaction(
-      async (tx) => {
-        const purchases =
-          await tx.purchase.findMany({
-            where: {
-              supplierId:
-                data.supplierId,
-              status: {
-                not: "CANCELLED",
-              },
-              dueAmount: {
-                gt: 0,
-              },
-            },
-            orderBy: [
-              {
-                createdAt: "asc",
-              },
-              {
-                id: "asc",
-              },
-            ],
-            select: {
-              id: true,
-              reference: true,
-              paidAmount: true,
-              dueAmount: true,
-              paymentMethod: true,
-              accountId: true,
-            },
-          });
-
-        if (purchases.length === 0) {
-          throw new Error(
-            "This supplier has no outstanding payable balance",
-          );
-        }
-
-        const totalOutstanding =
-          purchases.reduce(
-            (sum, purchase) =>
-              sum +
-              Number(
-                purchase.dueAmount,
-              ),
-            0,
-          );
-
-        if (
-          data.amount >
-          totalOutstanding
-        ) {
-          throw new Error(
-            `Payment amount cannot exceed outstanding payable of ${totalOutstanding.toFixed(
-              2,
-            )}`,
-          );
-        }
-
-        const normalizedPayment =
-          await validateActualPaymentAccount(
-            tx,
-            data.amount,
-            data.paymentMethod,
-            data.accountId,
-          );
-
-        if (
-          normalizedPayment.paymentMethod ===
-          null
-        ) {
-          throw new Error(
-            "Payment method is required when paid amount is greater than 0",
-          );
-        }
-
-        const actualAccountId =
-          normalizedPayment.accountId;
-
-        let remainingAmount =
-          data.amount;
-        const paymentDate =
-          new Date();
-        const updatedPurchaseIds: number[] =
-          [];
-
-        for (const purchase of purchases) {
-          if (
-            remainingAmount <=
-            0
-          ) {
-            break;
-          }
-
-          const purchaseDue =
-            Number(
-              purchase.dueAmount,
-            );
-
-          const paymentForPurchase =
-            Math.min(
-              remainingAmount,
-              purchaseDue,
-            );
-
-          const newPaidAmount =
-            Number(
-              purchase.paidAmount,
-            ) +
-            paymentForPurchase;
-
-          const newDueAmount =
-            purchaseDue -
-            paymentForPurchase;
-
-          await tx.purchase.update({
-            where: {
-              id: purchase.id,
-            },
-            data: {
-              paidAmount:
-                new Prisma.Decimal(
-                  newPaidAmount,
-                ),
-              dueAmount:
-                new Prisma.Decimal(
-                  newDueAmount,
-                ),
-              paymentMethod:
-                normalizedPayment.paymentMethod,
-              accountId:
-                actualAccountId,
-            },
-          });
-
-          await createPurchasePaymentJournal(
-            tx,
-            purchase,
-            paymentDate,
-            paymentForPurchase,
-            normalizedPayment.paymentMethod,
-            actualAccountId,
-          );
-
-          await updateActualAccountBalance(
-            tx,
-            normalizedPayment.paymentMethod,
-            actualAccountId,
-            paymentForPurchase,
-            "decrement",
-          );
-
-          remainingAmount -=
-            paymentForPurchase;
-          updatedPurchaseIds.push(
-            purchase.id,
-          );
-        }
-
-        return {
-          supplierId:
-            supplier.id,
-          supplierName:
-            supplier.name,
-          amountPaid:
-            data.amount,
-          remainingPayable:
-            Number(
-              (
-                totalOutstanding -
-                data.amount
-              ).toFixed(2),
-            ),
-          updatedPurchaseIds,
-        };
       },
     );
   },

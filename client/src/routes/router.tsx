@@ -4,10 +4,7 @@ import RequireRole from "../components/RequireRole";
 import { MANAGEMENT } from "../features/auth/roles";
 import AuthLayout from "../layouts/AuthLayout";
 import LoginPage from "../features/auth/pages/LoginPage";
-import MoneyTransferPage from "../features/finance/pages/MoneyTransferPage";
 import CustomerPage from "../features/people/customer/pages/CustomerPage";
-import CashFlowPage from "../features/reports/pages/CashFlowPage";
-import MoneyOverviewPage from "../features/finance/pages/MoneyOverviewPage";
 
 const DashboardLayout = lazy(() => import("../layouts/DashboardLayout"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -58,25 +55,12 @@ const ExpensesPage = lazy(
 const BankAccountsPage = lazy(
   () => import("../features/finance/pages/BankAccountsPage"),
 );
-const StaffPage = lazy(() => import("../features/manager/pages/StaffPage"));
-const OwnersPage = lazy(
-  () => import("../features/people/owners/pages/OwnersPage"),
-);
 const EmployeesPage = lazy(
   () => import("../features/people/employees/pages/EmployeesPage"),
 );
-const IncomePage = lazy(
-  () => import("../features/finance/pages/IncomePage"),
-);
 const VatPage = lazy(() => import("../features/finance/pages/VatPage"));
-const LedgerStatementPage = lazy(
-  () => import("../features/finance/pages/LedgerStatementPage"),
-);
-const BalanceSheetPage = lazy(
-  () => import("../features/reports/pages/BalanceSheetPage"),
-);
-const TrialBalancePage = lazy(
-  () => import("../features/reports/pages/TrialBalancePage"),
+const AccountStatementPage = lazy(
+  () => import("../features/finance/pages/AccountStatementPage"),
 );
 const ProfitLossPage = lazy(
   () => import("../features/reports/pages/ProfitLossPage"),
@@ -168,48 +152,43 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        // Sale modals open on top of the sales table
         path: "/sales",
         element: withSuspense(<SalePage />),
-      },
-      {
-        path: "/sales/:id",
-        element: withSuspense(
-          <Modal>
-            <SaleDetails />
-          </Modal>,
-        ),
-      },
-      {
-        path: "/sales/:id/return",
-        element: withSuspense(
-          <Modal>
-            <ReturnSale />
-          </Modal>,
-        ),
-      },
-      {
-        path: "/sales/:id/resume",
-        element: withSuspense(
-          <Modal>
-            <ResumeSale />
-          </Modal>,
-        ),
-      },
-      // {
-      //   path: "/sales/:id/complete",
-      //   element: (
-      //     <Modal>
-      //       <CompleteSale />
-      //     </Modal>
-      //   ),
-      // },
-      {
-        path: "/sales/:id/cancel",
-        element: withSuspense(
-          <Modal>
-            <CancelSale />
-          </Modal>,
-        ),
+        children: [
+          {
+            path: ":id",
+            element: withSuspense(
+              <Modal size="lg">
+                <SaleDetails />
+              </Modal>,
+            ),
+          },
+          {
+            path: ":id/return",
+            element: withSuspense(
+              <Modal size="lg">
+                <ReturnSale />
+              </Modal>,
+            ),
+          },
+          {
+            path: ":id/resume",
+            element: withSuspense(
+              <Modal>
+                <ResumeSale />
+              </Modal>,
+            ),
+          },
+          {
+            path: ":id/cancel",
+            element: withSuspense(
+              <Modal size="sm">
+                <CancelSale />
+              </Modal>,
+            ),
+          },
+        ],
       },
       {
         path: "/invoice",
@@ -260,26 +239,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "/owners",
-        element: withSuspense(
-          <RequireRole roles={MANAGEMENT}>
-            <OwnersPage />
-          </RequireRole>,
-        ),
-      },
-      {
         path: "/employees",
         element: withSuspense(
           <RequireRole roles={MANAGEMENT}>
             <EmployeesPage />
-          </RequireRole>,
-        ),
-      },
-      {
-        path: "/income",
-        element: withSuspense(
-          <RequireRole roles={MANAGEMENT}>
-            <IncomePage />
           </RequireRole>,
         ),
       },
@@ -292,26 +255,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "/money-overview/:type/statement",
+        path: "/account-statement",
         element: withSuspense(
           <RequireRole roles={MANAGEMENT}>
-            <LedgerStatementPage />
-          </RequireRole>,
-        ),
-      },
-      {
-        path: "/balance-sheet",
-        element: withSuspense(
-          <RequireRole roles={MANAGEMENT}>
-            <BalanceSheetPage />
-          </RequireRole>,
-        ),
-      },
-      {
-        path: "/trial-balance",
-        element: withSuspense(
-          <RequireRole roles={MANAGEMENT}>
-            <TrialBalancePage />
+            <AccountStatementPage />
           </RequireRole>,
         ),
       },
@@ -336,38 +283,6 @@ export const router = createBrowserRouter([
         element: withSuspense(
           <RequireRole roles={MANAGEMENT}>
             <CloseOutPage />
-          </RequireRole>,
-        ),
-      },
-      {
-        path: "/money-overview",
-        element: withSuspense(
-          <RequireRole roles={MANAGEMENT}>
-            <MoneyOverviewPage />
-          </RequireRole>,
-        ),
-      },
-      {
-        path: "/cash-flow",
-        element: withSuspense(
-          <RequireRole roles={MANAGEMENT}>
-            <CashFlowPage />
-          </RequireRole>,
-        ),
-      },
-      {
-        path: "/manager/staff",
-        element: withSuspense(
-          <RequireRole roles={MANAGEMENT}>
-            <StaffPage />
-          </RequireRole>,
-        ),
-      },
-      {
-        path: "/money-transfer",
-        element: withSuspense(
-          <RequireRole roles={MANAGEMENT}>
-            <MoneyTransferPage />
           </RequireRole>,
         ),
       },

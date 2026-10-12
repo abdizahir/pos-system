@@ -146,6 +146,16 @@ const chartAccounts = [
     name: "Salary/Wages Expense",
     type: ChartAccountType.EXPENSE,
   },
+  {
+    code: "5300",
+    name: "Expired Stock Write-off",
+    type: ChartAccountType.EXPENSE,
+  },
+  {
+    code: "5400",
+    name: "Inventory Adjustments",
+    type: ChartAccountType.EXPENSE,
+  },
 ];
 
   for (const account of chartAccounts) {

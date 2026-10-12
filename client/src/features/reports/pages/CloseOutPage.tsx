@@ -1,19 +1,39 @@
 // client/src/features/reports/pages/CloseOutPage.tsx
 //
 // End-of-period close-out (EOD / EOW / EOM / EOY): sales, money
-// received, returns, profit, expenses, purchases, VAT and money
-// channel balances for one day, week, month or year.
+// received, profit, expenses, purchases, VAT and top products for
+// one day, week, month or year — in the system design.
 
-import type { ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import Chart from "react-apexcharts";
-import type { ApexOptions } from "apexcharts";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-
 import {
-  useGetCloseOutQuery,
-  type CloseOutPeriod,
-} from "../../../api/api";
+  FiChevronLeft,
+  FiChevronRight,
+  FiDollarSign,
+  FiShoppingBag,
+  FiShoppingCart,
+  FiTrendingDown,
+  FiTrendingUp,
+} from "react-icons/fi";
+
+import { useGetCloseOutQuery, type CloseOutPeriod } from "../../../api/api";
+import {
+  AmountTable,
+  ErrorBanner,
+  KpiCard,
+  ReportCard,
+  ReportHeader,
+} from "../components/ReportParts";
+import {
+  REPORT_CARD,
+  REPORT_INPUT,
+  downloadCsv,
+  downloadPdf,
+  etb,
+  money,
+  toDateInput,
+  type PdfTable,
+} from "../reportUtils";
 
 // ============================================================
 // HELPERS
@@ -34,13 +54,6 @@ const METHOD_LABELS: Record<string, string> = {
   NONE: "No refund",
 };
 
-function toDateInput(date: Date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 function parseDay(value: string) {
   return new Date(`${value}T00:00:00`);
 }
@@ -54,102 +67,25 @@ function shiftDate(value: string, period: CloseOutPeriod, step: number) {
   return toDateInput(date);
 }
 
-function etb(value: number) {
-  const formatted = Math.abs(value || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return `${value < 0 ? "−" : ""}ETB ${formatted}`;
-}
-
-function compact(value: number) {
-  return Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
-}
-
 function periodTitle(period: CloseOutPeriod, fromIso: string, toIso: string) {
   const from = new Date(fromIso);
   const to = new Date(toIso);
+  const opts: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short", year: "numeric" };
 
   if (period === "day") {
-    return from.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    return from.toLocaleDateString("en-GB", { weekday: "long", ...opts });
   }
   if (period === "week") {
-    const start = from.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const end = to.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    return `${start} – ${end}`;
+    return `${from.toLocaleDateString("en-GB", opts)} – ${to.toLocaleDateString("en-GB", opts)}`;
   }
   if (period === "month") {
-    return from.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    return from.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   }
   return String(from.getFullYear());
 }
 
-function bucketLabel(period: CloseOutPeriod, key: string) {
-  if (period === "day") {
-    const hour = Number(key);
-    return `${hour % 12 || 12}${hour < 12 ? "am" : "pm"}`;
-  }
-  if (period === "year") {
-    const [y, m] = key.split("-").map(Number);
-    return new Date(y!, m! - 1, 1).toLocaleDateString("en-US", { month: "short" });
-  }
-  if (period === "week") {
-    return parseDay(key).toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
-  }
-  return String(parseDay(key).getDate());
-}
-
-// ============================================================
-// UI PIECES
-// ============================================================
-
-function Card({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.08)] ${className}`}>
-      <h3 className="mb-3 text-sm font-semibold text-[#0F172A]">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  strong = false,
-  muted = false,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-  muted?: boolean;
-}) {
-  return (
-    <div
-      className={`flex items-center justify-between gap-3 py-1.5 text-sm ${
-        strong ? "border-t border-[#EEF2F6] pt-2.5 font-semibold text-[#0F172A]" : ""
-      } ${muted ? "text-[#94A3B8]" : "text-[#475569]"}`}
-    >
-      <span>{label}</span>
-      <span className="tabular-nums">{value}</span>
-    </div>
-  );
-}
-
-function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "good" | "bad" }) {
-  return (
-    <div className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
-      <p className="text-xs font-medium text-[#64748B]">{label}</p>
-      <p
-        className={`mt-1 text-xl font-bold tabular-nums ${
-          tone === "good" ? "text-emerald-600" : tone === "bad" ? "text-red-500" : "text-[#0F172A]"
-        }`}
-      >
-        {value}
-      </p>
-      {sub && <p className="mt-0.5 text-xs text-[#94A3B8]">{sub}</p>}
-    </div>
-  );
-}
+// Rows of label / amount for the summary cards and downloads
+type Row = { key: string; label: string; value: number; tone?: string };
 
 // ============================================================
 // PAGE
@@ -163,306 +99,396 @@ export default function CloseOutPage() {
   const period: CloseOutPeriod = PERIODS.some((p) => p.key === periodParam)
     ? (periodParam as CloseOutPeriod)
     : "day";
-  const date = searchParams.get("date") || today;
+  const appliedDate = searchParams.get("date") || today;
 
-  const setParams = (nextPeriod: CloseOutPeriod, nextDate: string) => {
-    const next = new URLSearchParams(searchParams);
-    next.set("period", nextPeriod);
-    next.set("date", nextDate);
-    setSearchParams(next, { replace: true });
+  const [date, setDate] = useState(appliedDate);
+
+  const apply = (nextPeriod: CloseOutPeriod, nextDate: string) => {
+    setDate(nextDate);
+    setSearchParams({ period: nextPeriod, date: nextDate }, { replace: true });
   };
 
-  const { data, isFetching, isError, refetch } = useGetCloseOutQuery(
-    { period, date },
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (date) apply(period, date);
+  };
+
+  const activePeriod = PERIODS.find((p) => p.key === period)!;
+  const nextDate = shiftDate(appliedDate, period, 1);
+
+  // --------------------------------------------------
+  // Data
+  // --------------------------------------------------
+
+  const { data, isFetching, isError } = useGetCloseOutQuery(
+    { period, date: appliedDate },
     { refetchOnMountOrArgChange: true },
   );
 
-  const loading = isFetching && !data;
-  const activePeriod = PERIODS.find((p) => p.key === period)!;
-  const nextDate = shiftDate(date, period, 1);
-  const isCurrent = data ? new Date(data.to) >= new Date() : false;
+  const title = data ? periodTitle(period, data.from, data.to) : "";
+  const isOpen = data ? new Date(data.to) >= new Date() : false;
 
-  const breakdown = data?.breakdown ?? [];
-  const chart: { options: ApexOptions; series: NonNullable<ApexOptions["series"]> } = {
-    series: [{ name: "Sales", data: breakdown.map((row) => Math.round(row.total * 100) / 100) }],
-    options: {
-      chart: { type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
-      colors: ["#FE9F43"],
-      plotOptions: { bar: { borderRadius: 4, columnWidth: breakdown.length > 20 ? "70%" : "50%" } },
-      dataLabels: { enabled: false },
-      grid: { borderColor: "#EEF2F6", strokeDashArray: 4 },
-      xaxis: {
-        categories: breakdown.map((row) => bucketLabel(period, row.key)),
-        labels: { style: { colors: "#94A3B8", fontSize: "11px" }, rotate: 0, hideOverlappingLabels: true },
-        axisBorder: { show: false },
-        axisTicks: { show: false },
+  const salesRows: Row[] = data
+    ? [
+        { key: "gross", label: "Gross sales", value: data.sales.gross },
+        { key: "discounts", label: "Discounts", value: -data.sales.discounts },
+        { key: "tax", label: "VAT", value: data.sales.tax },
+        { key: "total", label: "Total sales", value: data.sales.total },
+        { key: "returns", label: `Returns (${data.returns.count})`, value: -data.returns.total },
+        { key: "due", label: "Still due (credit)", value: data.sales.due, tone: data.sales.due > 0 ? "text-red-500" : undefined },
+        { key: "cancelled", label: `Cancelled (${data.sales.cancelledCount})`, value: data.sales.cancelledTotal },
+      ]
+    : [];
+
+  const paymentRows: Row[] = (data?.payments ?? []).map((p) => ({
+    key: p.method,
+    label: `${METHOD_LABELS[p.method]} (${p.count})`,
+    value: p.amount,
+    tone: p.amount > 0 ? "text-green-600" : undefined,
+  }));
+
+  const profitRows: Row[] = data
+    ? [
+        { key: "revenue", label: "Revenue", value: data.profit.revenue },
+        { key: "cogs", label: "Cost of goods sold", value: -data.profit.costOfSales },
+        { key: "gross", label: "Gross profit", value: data.profit.grossProfit },
+        { key: "opex", label: "Operating expenses", value: -data.profit.operatingExpenses },
+      ]
+    : [];
+
+  const vatRows: Row[] = data
+    ? [
+        { key: "collected", label: "Collected", value: data.vat.collected },
+        { key: "reversed", label: "Reversed (returns)", value: -data.vat.reversed },
+        { key: "net", label: "Net VAT", value: data.vat.net },
+      ]
+    : [];
+
+  const purchaseRows: Row[] = data
+    ? [
+        { key: "total", label: `Total purchases (${data.purchases.count})`, value: data.purchases.total },
+        { key: "paid", label: "Paid", value: data.purchases.paid },
+        { key: "due", label: "Owed to suppliers", value: data.purchases.due, tone: data.purchases.due > 0 ? "text-red-500" : undefined },
+      ]
+    : [];
+
+  const toTableRows = (rows: Row[]) =>
+    rows.map((row) => ({
+      key: row.key,
+      label: row.label,
+      amount: money(row.value),
+      tone: row.tone ?? (row.value < 0 ? "text-red-500" : undefined),
+    }));
+
+  // --------------------------------------------------
+  // Downloads
+  // --------------------------------------------------
+
+  const fileBase = `close-out-${activePeriod.short.toLowerCase()}-${appliedDate}`;
+
+  const rowsFor = (rows: Row[]) => rows.map((row) => [row.label, money(row.value)]);
+
+  const pdfTables = (): PdfTable[] => {
+    if (!data) return [];
+    return [
+      {
+        head: ["Summary", "Amount (ETB)"],
+        body: [
+          ["Net sales", money(data.netSales)],
+          ["Sales", String(data.sales.count)],
+          ["Money received", money(data.paymentsTotal)],
+          [data.profit.netProfit >= 0 ? "Net profit" : "Net loss", money(data.profit.netProfit)],
+        ],
+        rightAlign: [1],
+        boldRows: [3],
       },
-      yaxis: { labels: { formatter: (value) => compact(value), style: { colors: "#94A3B8", fontSize: "11px" } } },
-      tooltip: {
-        y: {
-          formatter: (value, opts) =>
-            `${etb(value)} · ${breakdown[opts?.dataPointIndex ?? 0]?.count ?? 0} sales`,
-        },
+      {
+        title: "Sales Summary",
+        head: ["Item", "Amount (ETB)"],
+        body: [...rowsFor(salesRows), ["Net sales", money(data.netSales)]],
+        rightAlign: [1],
+        boldRows: [salesRows.length],
       },
-    },
+      {
+        title: "Money Received by Method",
+        head: ["Method", "Amount (ETB)"],
+        body: [...rowsFor(paymentRows), ["Total received", money(data.paymentsTotal)]],
+        rightAlign: [1],
+        boldRows: [paymentRows.length],
+      },
+      {
+        title: "Profit",
+        head: ["Item", "Amount (ETB)"],
+        body: [...rowsFor(profitRows), ["Net profit", money(data.profit.netProfit)]],
+        rightAlign: [1],
+        boldRows: [profitRows.length],
+      },
+      {
+        title: "Expenses",
+        head: ["Category", "Amount (ETB)"],
+        body: [
+          ...data.expenses.byCategory.map((e) => [e.category, money(e.amount)]),
+          ["Total expenses", money(data.expenses.total)],
+        ],
+        rightAlign: [1],
+        boldRows: [data.expenses.byCategory.length],
+      },
+      { title: "Purchases", head: ["Item", "Amount (ETB)"], body: rowsFor(purchaseRows), rightAlign: [1] },
+      { title: "VAT", head: ["Item", "Amount (ETB)"], body: rowsFor(vatRows), rightAlign: [1] },
+      {
+        title: "Top Products",
+        head: ["Product", "Qty", "Revenue (ETB)"],
+        body: data.topProducts.map((p) => [p.name, String(p.quantity), money(p.revenue)]),
+        rightAlign: [1, 2],
+      },
+    ];
   };
 
+  const handleExcel = () => {
+    if (!data) return;
+    const rows: (string | number)[][] = [
+      [`${activePeriod.label} Report`],
+      ["Period", title],
+    ];
+    for (const table of pdfTables()) {
+      rows.push([], ...(table.title ? [[table.title]] : []), table.head, ...table.body);
+    }
+    downloadCsv(`${fileBase}.csv`, rows);
+  };
+
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+
+  const handlePdf = async () => {
+    if (!data) return;
+    setIsPdfLoading(true);
+    try {
+      await downloadPdf(`${fileBase}.pdf`, `${activePeriod.label} Report`, [`Period: ${title}`], pdfTables());
+    } catch (error) {
+      console.error("PDF export failed:", error);
+    } finally {
+      setIsPdfLoading(false);
+    }
+  };
+
+  // --------------------------------------------------
+  // UI
+  // --------------------------------------------------
+
+  const netProfit = data?.profit.netProfit ?? 0;
+
   return (
-    <section className="min-h-full bg-[#F6F7FB] p-4 sm:p-6">
-      <div className="mx-auto max-w-7xl space-y-5">
-        {/* ---------------- Top bar ---------------- */}
-        <header className="flex flex-wrap items-center justify-between gap-3">
+    <section id="close-out-page" className="bg-[#F7F7F7] p-6">
+      <ReportHeader
+        title="Close-Out Report"
+        subtitle="End of day, week, month and year totals"
+        onPdf={handlePdf}
+        onExcel={handleExcel}
+        disabled={!data}
+        pdfLoading={isPdfLoading}
+      />
+
+      {/* ================= FILTER ================= */}
+
+      <form onSubmit={handleSubmit} autoComplete="off" className={`${REPORT_CARD} mb-6`}>
+        <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#0F172A]">
-              {activePeriod.label} Report
-            </h1>
-            <p className="text-sm text-[#64748B]">
-              {data ? periodTitle(period, data.from, data.to) : "Loading…"}
-              {isCurrent && " · period still open"}
-            </p>
+            <h5 className="text-text-two font-semibold text-[15px]">Choose Your Period</h5>
+            {title && (
+              <p className="text-[#646B72] text-14 mt-0.5">
+                {activePeriod.label}: {title}
+                {isOpen && <span className="ml-2 text-xs text-[#FE9F43]">· period still open</span>}
+              </p>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-2xl bg-white p-1 shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
-              {PERIODS.map((p) => (
-                <button
-                  key={p.key}
-                  type="button"
-                  title={p.label}
-                  onClick={() => setParams(p.key, date)}
-                  className={`cursor-pointer rounded-xl px-3.5 py-1.5 text-sm font-medium transition ${
-                    period === p.key ? "bg-[#0F172A] text-white shadow-sm" : "text-[#64748B] hover:text-[#0F172A]"
-                  }`}
-                >
-                  {p.short}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-2">
+            {PERIODS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                title={p.label}
+                onClick={() => apply(p.key, appliedDate)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                  period === p.key
+                    ? "bg-[#FE9F43] text-white"
+                    : "border border-[#E6EAED] text-[#646B72] hover:border-[#FE9F43] hover:text-[#FE9F43]"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <hr className="border-t border-[#E6EAED]" />
 
-            <div className="flex items-center gap-1 rounded-2xl bg-white p-1 shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
+        <div className="px-5 py-4 flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1.5 w-full sm:w-72">
+            <label htmlFor="close-out-date" className="text-sm font-medium text-text-two">
+              Date
+            </label>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setParams(period, shiftDate(date, period, -1))}
-                className="grid h-8 w-8 cursor-pointer place-items-center rounded-xl text-[#64748B] hover:text-[#0F172A]"
                 aria-label="Previous period"
+                onClick={() => apply(period, shiftDate(appliedDate, period, -1))}
+                className="shrink-0 w-9.5 h-9.5 flex items-center justify-center rounded-lg border border-[#E6EAED] bg-white text-[#646B72] hover:border-[#FE9F43] hover:text-[#FE9F43] cursor-pointer"
               >
                 <FiChevronLeft size={16} />
               </button>
               <input
+                id="close-out-date"
                 type="date"
                 value={date}
                 max={today}
-                onChange={(e) => e.target.value && setParams(period, e.target.value)}
-                className="rounded-xl border-0 bg-transparent px-2 py-1 text-sm text-[#0F172A] outline-none"
+                onChange={(e) => setDate(e.target.value)}
+                className={REPORT_INPUT}
               />
               <button
                 type="button"
-                onClick={() => setParams(period, nextDate)}
-                disabled={nextDate > today}
-                className="grid h-8 w-8 cursor-pointer place-items-center rounded-xl text-[#64748B] hover:text-[#0F172A] disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Next period"
+                onClick={() => apply(period, nextDate)}
+                disabled={nextDate > today}
+                className="shrink-0 w-9.5 h-9.5 flex items-center justify-center rounded-lg border border-[#E6EAED] bg-white text-[#646B72] hover:border-[#FE9F43] hover:text-[#FE9F43] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <FiChevronRight size={16} />
               </button>
             </div>
           </div>
-        </header>
 
-        {isError && (
-          <div className="flex items-center justify-between rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">
-            Couldn't load the close-out report.
-            <button type="button" onClick={() => refetch()} className="cursor-pointer font-semibold underline">
-              Retry
-            </button>
+          <button
+            type="submit"
+            className="h-9.5 px-5 rounded-lg bg-[#FE9F43] text-white text-14 font-medium cursor-pointer transition-opacity hover:opacity-90"
+          >
+            Submit
+          </button>
+        </div>
+      </form>
+
+      <ErrorBanner message={isError ? "Failed to load the close-out report." : ""} />
+
+      {isFetching && !data && (
+        <p className={`${REPORT_CARD} px-5 py-10 text-center text-[#646B72] mb-6`}>Loading report...</p>
+      )}
+
+      {data && (
+        <>
+          {/* ================= KPI CARDS ================= */}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <KpiCard
+              label="Net Sales"
+              value={etb(data.netSales)}
+              sub={`after ${etb(data.returns.total)} returns`}
+              icon={FiShoppingBag}
+              tone="bg-orange-50 text-[#FE9F43]"
+            />
+            <KpiCard
+              label="Sales"
+              value={data.sales.count.toLocaleString()}
+              sub={`${data.sales.itemsSold.toLocaleString()} items · avg ${etb(data.sales.average)}`}
+              icon={FiShoppingCart}
+              tone="bg-blue-50 text-blue-500"
+            />
+            <KpiCard
+              label="Money Received"
+              value={etb(data.paymentsTotal)}
+              sub="All payment methods"
+              icon={FiDollarSign}
+              tone="bg-green-50 text-green-600"
+              valueTone="text-green-600"
+            />
+            <KpiCard
+              label={netProfit >= 0 ? "Net Profit" : "Net Loss"}
+              value={etb(netProfit)}
+              sub="Revenue − costs − expenses"
+              icon={netProfit >= 0 ? FiTrendingUp : FiTrendingDown}
+              tone={netProfit >= 0 ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}
+              valueTone={netProfit >= 0 ? "text-green-600" : "text-red-500"}
+            />
           </div>
-        )}
 
-        {loading && (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <span key={i} className="h-24 animate-pulse rounded-2xl bg-white" />
-            ))}
+          {/* ================= SALES / PAYMENTS / PROFIT ================= */}
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6 items-start">
+            <ReportCard title="Sales Summary">
+              <AmountTable
+                head={["Item", "Amount (ETB)"]}
+                rows={toTableRows(salesRows)}
+                total={{ label: "Net sales", amount: money(data.netSales) }}
+              />
+            </ReportCard>
+
+            <ReportCard title="Money Received by Method">
+              <AmountTable
+                head={["Method", "Amount (ETB)"]}
+                rows={toTableRows(paymentRows)}
+                total={{ label: "Total received", amount: money(data.paymentsTotal) }}
+              />
+              {data.returns.byMethod.length > 0 && (
+                <AmountTable
+                  head={["Refunds", "Amount (ETB)"]}
+                  rows={data.returns.byMethod.map((r) => ({
+                    key: r.method,
+                    label: METHOD_LABELS[r.method] ?? r.method,
+                    amount: money(r.amount),
+                  }))}
+                />
+              )}
+            </ReportCard>
+
+            <ReportCard title="Profit" subtitle="Same numbers as Profit & Loss">
+              <AmountTable
+                head={["Item", "Amount (ETB)"]}
+                rows={toTableRows(profitRows)}
+                total={{ label: netProfit >= 0 ? "Net profit" : "Net loss", amount: money(netProfit) }}
+              />
+            </ReportCard>
           </div>
-        )}
 
-        {data && (
-          <>
-            {/* ---------------- KPIs ---------------- */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Kpi label="Net sales" value={etb(data.netSales)} sub={`after ${etb(data.returns.total)} returns`} />
-              <Kpi
-                label="Transactions"
-                value={data.sales.count.toLocaleString()}
-                sub={`${data.sales.itemsSold.toLocaleString()} items · avg ${etb(data.sales.average)}`}
+          {/* ================= EXPENSES / PURCHASES / VAT ================= */}
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6 items-start">
+            <ReportCard title="Expenses" subtitle={`${data.expenses.count} recorded`}>
+              <AmountTable
+                head={["Category", "Amount (ETB)"]}
+                rows={data.expenses.byCategory.map((e) => ({
+                  key: e.category,
+                  label: e.category,
+                  amount: money(e.amount),
+                }))}
+                total={{ label: "Total expenses", amount: money(data.expenses.total) }}
+                empty="No expenses."
               />
-              <Kpi label="Money received" value={etb(data.paymentsTotal)} sub="all payment methods" />
-              <Kpi
-                label={data.profit.netProfit >= 0 ? "Net profit" : "Net loss"}
-                value={etb(data.profit.netProfit)}
-                tone={data.profit.netProfit >= 0 ? "good" : "bad"}
-              />
-            </div>
+            </ReportCard>
 
-            {/* ---------------- Breakdown ---------------- */}
-            <Card title={period === "day" ? "Sales by hour" : period === "year" ? "Sales by month" : "Sales by day"}>
-              <Chart type="bar" height={240} options={chart.options} series={chart.series} />
-            </Card>
+            <ReportCard title="Purchases">
+              <AmountTable head={["Item", "Amount (ETB)"]} rows={toTableRows(purchaseRows)} />
+            </ReportCard>
 
-            <div className="grid gap-5 lg:grid-cols-3">
-              {/* ---------------- Sales ---------------- */}
-              <Card title="Sales summary">
-                <Row label="Gross sales" value={etb(data.sales.gross)} />
-                <Row label="Discounts" value={etb(-data.sales.discounts)} />
-                <Row label="VAT" value={etb(data.sales.tax)} />
-                <Row label="Total sales" value={etb(data.sales.total)} strong />
-                <Row label={`Returns (${data.returns.count})`} value={etb(-data.returns.total)} />
-                <Row label="Net sales" value={etb(data.netSales)} strong />
-                <Row label="Paid on these sales" value={etb(data.sales.paid)} muted />
-                <Row label="Still due (credit)" value={etb(data.sales.due)} muted />
-                <Row
-                  label={`Cancelled (${data.sales.cancelledCount})`}
-                  value={etb(data.sales.cancelledTotal)}
-                  muted
-                />
-              </Card>
+            <ReportCard title="VAT">
+              <AmountTable head={["Item", "Amount (ETB)"]} rows={toTableRows(vatRows)} />
+            </ReportCard>
+          </div>
 
-              {/* ---------------- Payments ---------------- */}
-              <Card title="Money received by method">
-                {data.payments.map((row) => (
-                  <Row
-                    key={row.method}
-                    label={`${METHOD_LABELS[row.method]} (${row.count})`}
-                    value={etb(row.amount)}
-                  />
-                ))}
-                <Row label="Total received" value={etb(data.paymentsTotal)} strong />
+          {/* ================= TOP PRODUCTS ================= */}
 
-                {data.returns.byMethod.length > 0 && (
-                  <>
-                    <p className="mt-4 mb-1 text-xs font-semibold uppercase tracking-wide text-[#94A3B8]">
-                      Refunds
-                    </p>
-                    {data.returns.byMethod.map((row) => (
-                      <Row key={row.method} label={METHOD_LABELS[row.method]} value={etb(-row.amount)} />
-                    ))}
-                  </>
-                )}
-              </Card>
+          <ReportCard title="Top Products">
+            <AmountTable
+              head={["Product", "Revenue (ETB)"]}
+              rows={data.topProducts.map((p) => ({
+                key: String(p.productId),
+                label: `${p.name} × ${p.quantity.toLocaleString()}`,
+                amount: money(p.revenue),
+              }))}
+              empty="No products sold."
+            />
+          </ReportCard>
 
-              {/* ---------------- Profit ---------------- */}
-              <Card title="Profit">
-                <Row label="Revenue" value={etb(data.profit.revenue)} />
-                <Row label="Cost of goods sold" value={etb(-data.profit.costOfSales)} />
-                <Row label="Gross profit" value={etb(data.profit.grossProfit)} strong />
-                <Row label="Operating expenses" value={etb(-data.profit.operatingExpenses)} />
-                <Row
-                  label={data.profit.netProfit >= 0 ? "Net profit" : "Net loss"}
-                  value={etb(data.profit.netProfit)}
-                  strong
-                />
-                <p className="mt-2 text-xs text-[#94A3B8]">From posted journal entries, same as Profit / Loss.</p>
-              </Card>
-            </div>
-
-            {/* ---------------- Money channels ---------------- */}
-            <Card title="Money channels">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px] text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-[#94A3B8]">
-                      <th className="py-2 font-medium">Channel</th>
-                      <th className="py-2 text-right font-medium">Opening</th>
-                      <th className="py-2 text-right font-medium">In</th>
-                      <th className="py-2 text-right font-medium">Out</th>
-                      <th className="py-2 text-right font-medium">Closing</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-[#475569]">
-                    {data.channels.map((row) => (
-                      <tr key={row.key} className="border-t border-[#EEF2F6]">
-                        <td className="py-2 font-medium text-[#0F172A]">{row.label}</td>
-                        <td className="py-2 text-right tabular-nums">{etb(row.opening)}</td>
-                        <td className="py-2 text-right tabular-nums text-emerald-600">{etb(row.moneyIn)}</td>
-                        <td className="py-2 text-right tabular-nums text-red-500">{etb(-row.moneyOut)}</td>
-                        <td className="py-2 text-right font-semibold tabular-nums text-[#0F172A]">
-                          {etb(row.closing)}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="border-t border-[#EEF2F6] font-semibold text-[#0F172A]">
-                      <td className="py-2">Total</td>
-                      {(["opening", "moneyIn", "moneyOut", "closing"] as const).map((field) => {
-                        const sum = data.channels.reduce((acc, row) => acc + row[field], 0);
-                        return (
-                          <td key={field} className="py-2 text-right tabular-nums">
-                            {etb(field === "moneyOut" ? -sum : sum)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-2 text-xs text-[#94A3B8]">
-                Count the cash drawer and compare it with the Cash Register closing balance.
-              </p>
-            </Card>
-
-            <div className="grid gap-5 lg:grid-cols-3">
-              {/* ---------------- Expenses ---------------- */}
-              <Card title={`Expenses (${data.expenses.count})`}>
-                {data.expenses.byCategory.length === 0 && <p className="text-sm text-[#94A3B8]">No expenses.</p>}
-                {data.expenses.byCategory.map((row) => (
-                  <Row key={row.category} label={row.category} value={etb(row.amount)} />
-                ))}
-                <Row label="Total expenses" value={etb(data.expenses.total)} strong />
-              </Card>
-
-              {/* ---------------- Purchases ---------------- */}
-              <Card title={`Purchases (${data.purchases.count})`}>
-                <Row label="Total purchases" value={etb(data.purchases.total)} />
-                <Row label="Paid" value={etb(data.purchases.paid)} />
-                <Row label="Owed to suppliers" value={etb(data.purchases.due)} strong />
-              </Card>
-
-              {/* ---------------- VAT ---------------- */}
-              <Card title="VAT">
-                <Row label="Collected" value={etb(data.vat.collected)} />
-                <Row label="Reversed (returns)" value={etb(-data.vat.reversed)} />
-                <Row label="Net VAT" value={etb(data.vat.net)} strong />
-                <Row label="Paid to authority" value={etb(data.vat.paid)} muted />
-                <Row label="Payable at period end" value={etb(data.vat.payable)} muted />
-              </Card>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-2">
-              {/* ---------------- Cashiers ---------------- */}
-              <Card title="Sales by cashier">
-                {data.cashiers.length === 0 && <p className="text-sm text-[#94A3B8]">No sales.</p>}
-                {data.cashiers.map((row) => (
-                  <Row key={row.userId} label={`${row.email} (${row.count})`} value={etb(row.total)} />
-                ))}
-              </Card>
-
-              {/* ---------------- Top products ---------------- */}
-              <Card title="Top products">
-                {data.topProducts.length === 0 && <p className="text-sm text-[#94A3B8]">No products sold.</p>}
-                {data.topProducts.map((row) => (
-                  <Row
-                    key={row.productId}
-                    label={`${row.name} × ${row.quantity.toLocaleString()}`}
-                    value={etb(row.revenue)}
-                  />
-                ))}
-              </Card>
-            </div>
-
-            <p className="text-right text-xs text-[#94A3B8]">
-              Generated {new Date(data.generatedAt).toLocaleString()}
-            </p>
-          </>
-        )}
-      </div>
+          <p className="mt-4 text-right text-xs text-[#8A94A3]">
+            Generated {new Date(data.generatedAt).toLocaleString("en-GB")}
+          </p>
+        </>
+      )}
     </section>
   );
 }

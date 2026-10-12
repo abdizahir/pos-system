@@ -8,13 +8,17 @@ import {
   getStocks,
   updateStock,
 } from "../controllers/stock.controller.js";
+import { writeOffExpiredController } from "../controllers/stockWriteOff.controller.js";
+import { adjustStockController } from "../controllers/stockAdjustment.controller.js";
 
 const router = Router();
 
 router.get("/", getStocks);
 
-// IMPORTANT: this must come BEFORE /:id
+// IMPORTANT: these must come BEFORE /:id
 router.post("/opening", createOpeningStock);
+router.post("/write-off-expired", writeOffExpiredController);
+router.post("/adjust", adjustStockController);
 
 router.get("/:id", getStock);
 

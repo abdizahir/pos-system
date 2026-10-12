@@ -5,12 +5,10 @@
 
 import type { IconType } from "react-icons";
 import {
-  FiActivity,
   FiAlertTriangle,
   FiBarChart2,
   FiBox,
   FiCalendar,
-  FiClipboard,
   FiClock,
   FiCreditCard,
   FiDollarSign,
@@ -18,18 +16,13 @@ import {
   FiHome,
   FiLayers,
   FiPercent,
-  FiPieChart,
   FiRefreshCcw,
-  FiRepeat,
   FiRotateCcw,
   FiShoppingCart,
-  FiTrendingUp,
   FiTruck,
   FiBriefcase,
-  FiKey,
   FiUserCheck,
   FiUsers,
-  FiAward,
   FiMonitor,
 } from "react-icons/fi";
 
@@ -94,11 +87,9 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Finance",
     icon: FiDollarSign,
     items: [
-      { label: "Money Overview", to: "/money-overview", icon: FiActivity, roles: MANAGEMENT },
       { label: "Expenses", to: "/expenses", icon: FiDollarSign, roles: MANAGEMENT },
-      { label: "Income", to: "/income", icon: FiTrendingUp, roles: MANAGEMENT },
       { label: "Accounts", to: "/accounts", icon: FiCreditCard, roles: MANAGEMENT },
-      { label: "Transfers", to: "/money-transfer", icon: FiRepeat, roles: MANAGEMENT },
+      { label: "Account Statement", to: "/account-statement", icon: FiFileText, roles: MANAGEMENT },
       { label: "VAT", to: "/vat", icon: FiPercent, roles: MANAGEMENT },
     ],
   },
@@ -108,10 +99,7 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: FiBarChart2,
     items: [
       { label: "Close-Out (EOD)", to: "/close-out", icon: FiCalendar, roles: MANAGEMENT },
-      { label: "Balance Sheet", to: "/balance-sheet", icon: FiPieChart, roles: MANAGEMENT },
-      { label: "Trial Balance", to: "/trial-balance", icon: FiClipboard, roles: MANAGEMENT },
       { label: "Profit / Loss", to: "/profit-loss", icon: FiBarChart2, roles: MANAGEMENT },
-      { label: "Cash Flow", to: "/cash-flow", icon: FiActivity, roles: MANAGEMENT },
     ],
   },
   {
@@ -122,14 +110,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Customers", to: "/customers", icon: FiUsers },
       { label: "Suppliers", to: "/suppliers", icon: FiUserCheck, roles: MANAGEMENT },
       { label: "Employees", to: "/employees", icon: FiBriefcase, roles: MANAGEMENT },
-      { label: "Owners", to: "/owners", icon: FiKey, roles: MANAGEMENT },
     ],
-  },
-  {
-    key: "manager",
-    label: "Manager",
-    icon: FiAward,
-    items: [{ label: "Staff", to: "/manager/staff", icon: FiAward, roles: MANAGEMENT }],
   },
 ];
 

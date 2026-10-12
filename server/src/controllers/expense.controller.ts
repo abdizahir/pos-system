@@ -87,7 +87,8 @@ export const createExpenseController = async (
       category,
       amount,
       date,
-      paymentMethod,
+      // Record-only: expenses without a method are booked as cash
+      paymentMethod = "CASH",
       accountId,
       reference,
       notes,

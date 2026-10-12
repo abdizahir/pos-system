@@ -13,9 +13,6 @@ export const ALL_ROLES: UserRole[] = ["MANAGER", "CASHIER"];
 // Running the store: dashboard, inventory, finance, people, reports
 export const MANAGEMENT: UserRole[] = ["MANAGER"];
 
-// Taking owner withdrawals
-export const MANAGER_ONLY: UserRole[] = ["MANAGER"];
-
 export const ROLE_LABELS: Record<UserRole, string> = {
   MANAGER: "Manager",
   CASHIER: "Cashier",

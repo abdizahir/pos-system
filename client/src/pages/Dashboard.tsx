@@ -2,9 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   FiAlertTriangle,
-  FiArrowDownLeft,
   FiArrowRight,
-  FiArrowUpRight,
   FiBox,
   FiChevronRight,
   FiCreditCard,
@@ -246,7 +244,7 @@ function ChannelCard({
 
   return (
     <Link
-      to={`/money-overview/${channel.key.toLowerCase()}/statement?from=${date}&to=${date}`}
+      to={`/account-statement?type=${channel.key.toLowerCase()}&from=${date}&to=${date}`}
       className="group block rounded-2xl border border-[#E6EAED] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#FE9F43]/60 hover:shadow-md"
     >
       <div className="flex items-center justify-between gap-2">
@@ -274,25 +272,6 @@ function ChannelCard({
         </p>
       )}
       <p className="text-xs text-[#8A94A3]">Net · {dayLabel}</p>
-
-      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[#E6EAED] pt-3">
-        <div>
-          <p className="flex items-center gap-1 text-xs text-[#646B72]">
-            <FiArrowDownLeft className="text-emerald-600" /> In
-          </p>
-          <p className="text-sm font-semibold tabular-nums text-emerald-600">
-            {loading ? "…" : money(channel.moneyIn)}
-          </p>
-        </div>
-        <div>
-          <p className="flex items-center gap-1 text-xs text-[#646B72]">
-            <FiArrowUpRight className="text-red-500" /> Out
-          </p>
-          <p className="text-sm font-semibold tabular-nums text-red-500">
-            {loading ? "…" : money(channel.moneyOut)}
-          </p>
-        </div>
-      </div>
     </Link>
   );
 }
@@ -745,12 +724,12 @@ export default function Dashboard() {
             <div>
               <p className="font-semibold text-text-two">VAT 15%</p>
               <p className="text-xs text-[#8A94A3]">
-                Ledger 2100 · VAT Payable
+                VAT on this day's sales
               </p>
             </div>
           </div>
 
-          <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid flex-1 grid-cols-3 gap-4">
             {[
               {
                 label: "Collected",
@@ -763,13 +742,8 @@ export default function Dashboard() {
                 tone: "text-red-500",
               },
               {
-                label: "Paid",
-                value: data?.vat?.paid,
-                tone: "text-blue-600",
-              },
-              {
-                label: "Payable (end of day)",
-                value: data?.vat?.payable,
+                label: "Net VAT",
+                value: data?.vat?.net,
                 tone: "text-[#F27D16]",
               },
             ].map((item) => (

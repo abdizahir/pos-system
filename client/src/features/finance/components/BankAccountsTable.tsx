@@ -162,8 +162,6 @@ export const BankAccountsTable = () => {
 
               <th className="px-6 py-4">Type</th>
 
-              <th className="px-6 py-4">Balance</th>
-
               <th className="px-6 py-4">Status</th>
 
               <th className="px-6 py-4">View</th>
@@ -201,14 +199,6 @@ export const BankAccountsTable = () => {
                     {getAccountTypeLabel(account.type)}
                   </td>
 
-                  <td className="px-6 py-4 font-medium">
-                    {Number(account.currentBalance).toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    ETB
-                  </td>
-
                   {/* ================= STATUS ================= */}
 
                   <td className="px-6 py-4">
@@ -227,7 +217,7 @@ export const BankAccountsTable = () => {
 
                   <td className="px-6 py-4">
                     <a
-                      href={`/money-overview/${account.type.toLowerCase()}/statement?account=${account.id}`}
+                      href={`/account-statement?account=${account.id}`}
                       rel="noreferrer"
                       className="inline-flex rounded-md border border-[#E6EAED] px-3 py-1.5 text-sm font-medium text-[#1B2850] transition-colors hover:border-[#FE9F43] hover:text-[#FE9F43]"
                     >
@@ -247,7 +237,7 @@ export const BankAccountsTable = () => {
             ) : (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={7}
                   className="px-6 py-8 text-center text-[#646B72]"
                 >
                   No accounts found.

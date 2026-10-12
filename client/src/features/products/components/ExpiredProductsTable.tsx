@@ -1,6 +1,11 @@
 import { useState } from "react";
-import { FiSearch, FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { useGetProductsQuery, useGetStocksQuery } from "../../../api/api";
+import { FiSearch, FiChevronLeft, FiChevronRight, FiTrash2 } from "react-icons/fi";
+import {
+  useGetProductsQuery,
+  useGetStocksQuery,
+  useWriteOffExpiredStockMutation,
+} from "../../../api/api";
+import DeleteModal from "../../../components/DeleteModal";
 
 type ExpiredStock = {
   id: number;
@@ -10,28 +15,40 @@ type ExpiredStock = {
   expiryDate: string | null;
 };
 
+// What a write-off confirmation is for: one product's batches or all of them
+type WriteOffTarget = {
+  title: string;
+  batchIds?: number[];
+  units: number;
+  cost: number;
+};
+
+const etb = (value: number) =>
+  `ETB ${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export default function ExpiredProductsTable() {
   const { data: products = [], isLoading: productsLoading } =
     useGetProductsQuery();
 
   const { data: stocks = [], isLoading: stocksLoading } = useGetStocksQuery();
 
+  const [writeOff, { isLoading: isWritingOff }] = useWriteOffExpiredStockMutation();
+
   const [selectedCategory] = useState("Category");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [target, setTarget] = useState<WriteOffTarget | null>(null);
+  const [writeOffError, setWriteOffError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const rowsPerPage = 10;
 
   // --------------------------------------------------
-  // GET ONLY EXPIRED STOCK BATCHES
-  // --------------------------------------------------
-
-  // --------------------------------------------------
-  // GET ONLY EXPIRED STOCK BATCHES
+  // GET ONLY EXPIRED STOCK BATCHES THAT STILL HAVE UNITS
   // --------------------------------------------------
 
   const expiredStocks: ExpiredStock[] = stocks.filter((stock) => {
-    if (!stock.expiryDate) {
+    if (!stock.expiryDate || stock.quantity <= 0) {
       return false;
     }
 
@@ -44,78 +61,82 @@ export default function ExpiredProductsTable() {
     return expiryDate < today;
   });
 
-// --------------------------------------------------
-// GROUP EXPIRED STOCK BY PRODUCT
-// --------------------------------------------------
+  // --------------------------------------------------
+  // GROUP EXPIRED STOCK BY PRODUCT
+  // --------------------------------------------------
 
-const expiredProducts = Object.values(
-  expiredStocks.reduce(
-    (acc, stock) => {
-      const product = products.find(
-        (product) => product.id === stock.productId,
-      );
+  const expiredProducts = Object.values(
+    expiredStocks.reduce(
+      (acc, stock) => {
+        const product = products.find(
+          (product) => product.id === stock.productId,
+        );
 
-      if (!product) {
-        return acc;
-      }
-
-      // First expired batch for this product
-      if (!acc[stock.productId]) {
-        acc[stock.productId] = {
-          product,
-          quantity: stock.quantity,
-          purchasePrice: Number(stock.purchasePrice),
-          expiryDate: stock.expiryDate,
-        };
-
-        return acc;
-      }
-
-      // Add quantity from this expired batch
-      acc[stock.productId].quantity += stock.quantity;
-
-      // --------------------------------------------------
-      // KEEP THE EARLIEST EXPIRY DATE
-      // --------------------------------------------------
-
-      const currentExpiry =
-        acc[stock.productId].expiryDate;
-
-      const newExpiry = stock.expiryDate;
-
-      if (newExpiry) {
-        // If there is no current expiry date,
-        // use the new expiry date.
-        if (!currentExpiry) {
-          acc[stock.productId].expiryDate = newExpiry;
-          acc[stock.productId].purchasePrice =
-            Number(stock.purchasePrice);
+        if (!product) {
+          return acc;
         }
 
-        // Otherwise compare the two dates
-        else if (
-          new Date(newExpiry).getTime() <
-          new Date(currentExpiry).getTime()
-        ) {
-          acc[stock.productId].expiryDate = newExpiry;
-          acc[stock.productId].purchasePrice =
-            Number(stock.purchasePrice);
-        }
-      }
+        const batchCost = stock.quantity * Number(stock.purchasePrice);
 
-      return acc;
-    },
-    {} as Record<
-      number,
-      {
-        product: (typeof products)[number];
-        quantity: number;
-        purchasePrice: number;
-        expiryDate: string | null;
-      }
-    >,
-  ),
-);
+        // First expired batch for this product
+        if (!acc[stock.productId]) {
+          acc[stock.productId] = {
+            product,
+            quantity: stock.quantity,
+            purchasePrice: Number(stock.purchasePrice),
+            expiryDate: stock.expiryDate,
+            batchIds: [stock.id],
+            cost: batchCost,
+          };
+
+          return acc;
+        }
+
+        // Add quantity and cost from this expired batch
+        acc[stock.productId].quantity += stock.quantity;
+        acc[stock.productId].batchIds.push(stock.id);
+        acc[stock.productId].cost += batchCost;
+
+        // --------------------------------------------------
+        // KEEP THE EARLIEST EXPIRY DATE
+        // --------------------------------------------------
+
+        const currentExpiry = acc[stock.productId].expiryDate;
+        const newExpiry = stock.expiryDate;
+
+        if (newExpiry) {
+          // If there is no current expiry date,
+          // use the new expiry date.
+          if (!currentExpiry) {
+            acc[stock.productId].expiryDate = newExpiry;
+            acc[stock.productId].purchasePrice = Number(stock.purchasePrice);
+          }
+
+          // Otherwise compare the two dates
+          else if (
+            new Date(newExpiry).getTime() <
+            new Date(currentExpiry).getTime()
+          ) {
+            acc[stock.productId].expiryDate = newExpiry;
+            acc[stock.productId].purchasePrice = Number(stock.purchasePrice);
+          }
+        }
+
+        return acc;
+      },
+      {} as Record<
+        number,
+        {
+          product: (typeof products)[number];
+          quantity: number;
+          purchasePrice: number;
+          expiryDate: string | null;
+          batchIds: number[];
+          cost: number;
+        }
+      >,
+    ),
+  );
 
   // --------------------------------------------------
   // SEARCH + CATEGORY FILTER
@@ -171,6 +192,41 @@ const expiredProducts = Object.values(
   };
 
   // --------------------------------------------------
+  // WRITE OFF
+  // --------------------------------------------------
+
+  const totalUnits = expiredProducts.reduce((sum, row) => sum + row.quantity, 0);
+  const totalCost = expiredProducts.reduce((sum, row) => sum + row.cost, 0);
+
+  const openWriteOff = (next: WriteOffTarget) => {
+    setWriteOffError("");
+    setNotice("");
+    setTarget(next);
+  };
+
+  const confirmWriteOff = async () => {
+    if (!target) return;
+    setWriteOffError("");
+
+    try {
+      const result = await writeOff(
+        target.batchIds ? { batchIds: target.batchIds } : undefined,
+      ).unwrap();
+
+      setTarget(null);
+      setNotice(
+        `Wrote off ${result.units} unit${result.units === 1 ? "" : "s"} (${etb(result.total)}) of ${result.products.join(", ")}.`,
+      );
+    } catch (error) {
+      const message =
+        typeof error === "object" && error !== null && "data" in error
+          ? (error as { data?: { message?: string } }).data?.message
+          : undefined;
+      setWriteOffError(message ?? "Couldn't write off the stock. Please try again.");
+    }
+  };
+
+  // --------------------------------------------------
   // LOADING
   // --------------------------------------------------
 
@@ -200,7 +256,7 @@ const expiredProducts = Object.values(
 
       <div
         id="card-header"
-        className="px-5 py-4 flex items-center justify-between"
+        className="px-5 py-4 flex flex-wrap gap-3 items-center justify-between"
       >
         {/* Search */}
 
@@ -227,8 +283,30 @@ const expiredProducts = Object.values(
           </div>
         </div>
 
-        {/* Category */}
+        {/* Write off everything that has expired */}
+        {expiredProducts.length > 0 && (
+          <button
+            type="button"
+            onClick={() =>
+              openWriteOff({
+                title: "all expired products",
+                units: totalUnits,
+                cost: totalCost,
+              })
+            }
+            className="flex items-center gap-2 px-3.5 py-2 rounded-md bg-red-500 text-white text-sm font-medium cursor-pointer hover:bg-red-600 transition-colors"
+          >
+            <FiTrash2 size={15} />
+            Write Off All ({etb(totalCost)})
+          </button>
+        )}
       </div>
+
+      {notice && (
+        <p className="mx-5 mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700">
+          {notice}
+        </p>
+      )}
 
       {/* ================= TABLE ================= */}
 
@@ -251,13 +329,17 @@ const expiredProducts = Object.values(
               <th className="px-6 py-4 text-center">Quantity</th>
 
               <th className="px-6 py-4 text-center">Expiry Date</th>
+
+              <th className="px-6 py-4 text-right">Cost Value</th>
+
+              <th className="px-6 py-4 text-center">Action</th>
             </tr>
           </thead>
 
           <tbody>
             {currentProducts.length > 0 ? (
               currentProducts.map(
-                ({ product, quantity, purchasePrice, expiryDate }) => (
+                ({ product, quantity, purchasePrice, expiryDate, batchIds, cost }) => (
                   <tr
                     key={product.id}
                     className="border-b border-gray-100 last:border-b-0"
@@ -291,13 +373,36 @@ const expiredProducts = Object.values(
                     <td className="px-6 py-4 text-center text-red-500 font-medium">
                       {formatExpiryDate(expiryDate)}
                     </td>
+
+                    {/* Cost of the expired units */}
+                    <td className="px-6 py-4 text-right font-medium">{etb(cost)}</td>
+
+                    {/* Write off this product's expired batches */}
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        type="button"
+                        title="Write off"
+                        onClick={() =>
+                          openWriteOff({
+                            title: product.productName,
+                            batchIds,
+                            units: quantity,
+                            cost,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 border border-[#E6EAED] px-2.5 py-1.5 rounded-md text-xs font-medium cursor-pointer text-[#646B72] hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors duration-200"
+                      >
+                        <FiTrash2 size={13} />
+                        Write off
+                      </button>
+                    </td>
                   </tr>
                 ),
               )
             ) : (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={10}
                   className="px-6 py-8 text-center text-[#646B72]"
                 >
                   No expired products found.
@@ -382,6 +487,60 @@ const expiredProducts = Object.values(
           </button>
         </div>
       </div>
+
+      {/* ================= WRITE-OFF CONFIRMATION ================= */}
+
+      <DeleteModal open={target !== null} onClick={() => !isWritingOff && setTarget(null)}>
+        {target && (
+          <div className="px-6 py-10 text-center bg-[#F7F7F7] flex flex-col items-center justify-center rounded-lg">
+            <div className="bg-red-500/10 rounded-full w-fit p-2 mb-2">
+              <FiTrash2 size={18} color="#FF0000" />
+            </div>
+
+            <h4 className="text-xl text-text-two font-bold mb-2 mt-1">
+              Write Off Expired Stock
+            </h4>
+
+            <p className="text-[#646B72] mb-1 text-[15px]">
+              Remove{" "}
+              <span className="font-semibold text-text-two">
+                {target.units} expired unit{target.units === 1 ? "" : "s"}
+              </span>{" "}
+              of <span className="font-semibold text-text-two">{target.title}</span> from stock?
+            </p>
+            <p className="text-sm text-[#646B72]">
+              Their cost of{" "}
+              <span className="font-semibold text-red-500">{etb(target.cost)}</span> is recorded
+              as an expired-stock loss.
+            </p>
+
+            {writeOffError && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700">
+                {writeOffError}
+              </p>
+            )}
+
+            <div className="mt-5 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTarget(null)}
+                disabled={isWritingOff}
+                className="text-[13px] font-medium py-2 px-3 bg-text-one border border-text-one text-white rounded-md cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmWriteOff}
+                disabled={isWritingOff}
+                className="text-[13px] font-medium py-2 px-3 bg-[#FE9F43] border border-[#FE9F43] text-white shadow-[0_4px_20px_rgba(254,159,67,0.15)] hover:bg-[#e88d2f] hover:border-[#e88d2f] transition-all duration-200 rounded-md cursor-pointer disabled:opacity-50"
+              >
+                {isWritingOff ? "Writing off..." : "Yes, Write Off"}
+              </button>
+            </div>
+          </div>
+        )}
+      </DeleteModal>
     </article>
   );
 }

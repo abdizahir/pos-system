@@ -2,14 +2,11 @@ import Button from "../../../../components/Button";
 import SupplierTable from "../components/SupplierTable";
 import DialogModal from "../../../../components/DialogModal";
 import CreateSupplier from "../components/CreateSupplier";
-import PaySupplier from "../components/PaySupplier";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../../../store/store";
 import {
   closeCreateSupplier,
-  closePaySupplier,
   openCreateSupplier,
-  openPaySupplier,
 } from "../../../../store/posSlice";
 
 export default function SupplierPage() {
@@ -17,10 +14,6 @@ export default function SupplierPage() {
 
   const isCreateSupplierModalOpen = useSelector(
     (state: RootState) => state.pos.isCreateSupplierModalOpen,
-  );
-
-  const isPaySupplierModalOpen = useSelector(
-    (state: RootState) => state.pos.isPaySupplierModalOpen,
   );
 
   return (
@@ -35,16 +28,10 @@ export default function SupplierPage() {
           </h4>
           <p className="text-[#646B72] text-14">Manage your suppliers</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            name="Add Suppliers"
-            onClick={() => dispatch(openCreateSupplier())}
-          />
-          <Button
-            name="Pay Suppliers"
-            onClick={() => dispatch(openPaySupplier())}
-          />
-        </div>
+        <Button
+          name="Add Suppliers"
+          onClick={() => dispatch(openCreateSupplier())}
+        />
       </article>
       <SupplierTable />
       <DialogModal
@@ -52,13 +39,6 @@ export default function SupplierPage() {
         open={isCreateSupplierModalOpen}
       >
         <CreateSupplier />
-      </DialogModal>
-
-      <DialogModal
-        onClick={() => dispatch(closePaySupplier())}
-        open={isPaySupplierModalOpen}
-      >
-        <PaySupplier />
       </DialogModal>
     </section>
   );

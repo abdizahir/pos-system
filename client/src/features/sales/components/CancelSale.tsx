@@ -1,13 +1,18 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiArrowLeft, FiX } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
+
 import {
   useGetSaleQuery,
   useCancelSaleMutation,
 } from "../../../api/api";
+import { apiErrorMessage, customerName, etb } from "./saleHelpers";
 
+// Confirmation in the same style as Delete Product
 export default function CancelSale() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const close = () => navigate(-1);
 
   const saleId = Number(id);
 
@@ -22,124 +27,74 @@ export default function CancelSale() {
   const [cancelSale, { isLoading: isCancelling }] =
     useCancelSaleMutation();
 
+  const [error, setError] = useState("");
+
   const handleCancel = async () => {
     if (!sale) return;
+    setError("");
 
     try {
       await cancelSale(sale.id).unwrap();
-
       navigate("/sales");
-    } catch (error) {
-      console.error("Failed to cancel sale:", error);
+    } catch (err) {
+      console.error("Failed to cancel sale:", err);
+      setError(apiErrorMessage(err, "Couldn't cancel the sale. Please try again."));
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-6">
-        <p className="text-gray-500">
-          Loading sale details...
-        </p>
-      </div>
-    );
-  }
-
-  if (isError || !sale) {
-    return (
-      <div className="p-6">
-        <p className="text-red-500">
-          Unable to load sale details.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="flex cursor-pointer items-center gap-2 text-gray-600 hover:text-gray-900"
-        >
-          <FiArrowLeft size={20} />
-          <span>Sales</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="cursor-pointer rounded-lg border border-gray-300 p-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-        >
-          <FiX size={20} />
-        </button>
+    <div className="px-6 py-10 text-center flex flex-col items-center justify-center">
+      <div className="bg-red-500/10 rounded-full w-fit p-2 mb-2">
+        <FiTrash2 size={18} color="#FF0000" />
       </div>
 
-      {/* Cancel Sale Content */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6">
-        {/* Title */}
-        <div className="border-b border-gray-200 pb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Cancel Sale
-          </h1>
+      <h4 className="text-xl text-text-two font-bold mb-2 mt-1">
+        Cancel Sale
+      </h4>
 
-          <p className="mt-2 text-sm text-gray-500">
-            Are you sure you want to cancel this sale?
+      {isLoading ? (
+        <p className="text-[#646B72] text-sm">Loading sale...</p>
+      ) : isError || !sale ? (
+        <p className="text-red-500 text-sm">Unable to load sale details.</p>
+      ) : (
+        <>
+          <p className="text-[#646B72] mb-1 text-[16px]">
+            Are you sure you want to cancel sale{" "}
+            <span className="font-semibold text-text-two">{sale.invoiceNumber}</span>?
           </p>
-        </div>
-
-        {/* Sale Information */}
-        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div>
-            <h2 className="mb-2 text-sm font-medium text-gray-500">
-              Invoice
-            </h2>
-
-            <p className="font-semibold text-gray-900">
-              {sale.invoiceNumber}
-            </p>
-          </div>
-
-          <div>
-            <h2 className="mb-2 text-sm font-medium text-gray-500">
-              Total
-            </h2>
-
-            <p className="font-semibold text-gray-900">
-              ${Number(sale.total).toFixed(2)}
-            </p>
-          </div>
-        </div>
-
-        {/* Warning */}
-        <div className="mt-8 rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-700">
-            This action will mark the sale as cancelled.
-            The sale cannot be completed afterward.
+          <p className="text-sm text-[#646B72]">
+            {customerName(sale.customer)} · {etb(sale.total)}
           </p>
-        </div>
+          <p className="mt-3 text-xs text-red-500">
+            The sale can't be completed after it's cancelled.
+          </p>
+        </>
+      )}
 
-        {/* Actions */}
-        <div className="mt-8 flex justify-end gap-3 border-t border-gray-200 pt-6">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            disabled={isCancelling}
-            className="cursor-pointer rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Keep Sale
-          </button>
+      {error && (
+        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700">
+          {error}
+        </p>
+      )}
 
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={isCancelling}
-            className="cursor-pointer rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isCancelling ? "Cancelling..." : "Cancel Sale"}
-          </button>
-        </div>
+      <div className="mt-5 flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={close}
+          disabled={isCancelling}
+          className="text-[13px] font-medium py-2 px-3 bg-text-one border border-text-one text-white rounded-md cursor-pointer disabled:opacity-50"
+        >
+          Keep Sale
+        </button>
+
+        <button
+          type="button"
+          onClick={handleCancel}
+          disabled={isCancelling || !sale}
+          className="text-[13px] font-medium py-2 px-3 bg-[#FE9F43] border border-[#FE9F43] text-white shadow-[0_4px_20px_rgba(254,159,67,0.15)] hover:bg-[#e88d2f] hover:border-[#e88d2f] transition-all duration-200 rounded-md cursor-pointer disabled:opacity-50"
+        >
+          {isCancelling ? "Cancelling..." : "Yes Cancel"}
+        </button>
       </div>
     </div>
   );

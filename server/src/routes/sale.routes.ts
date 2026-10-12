@@ -8,8 +8,9 @@ import {
   getSalesSummary,
   addSalePayment
 } from "../controllers/sale.controller.js";
+import { getOverdueSales } from "../controllers/overdueSales.controller.js";
 
-import { authenticate } from "../middleware/auth.middleware.js";
+import { authenticate, requireManagement } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -19,6 +20,7 @@ router.get("/", authenticate, getSales);
 
 // Before "/:id"
 router.get("/summary", authenticate, getSalesSummary);
+router.get("/overdue", authenticate, requireManagement, getOverdueSales);
 
 router.post("/:id/payments", authenticate, addSalePayment);
 

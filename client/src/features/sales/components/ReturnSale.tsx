@@ -1,28 +1,33 @@
 import { useState } from "react";
-import {
-  FiArrowLeft,
-  FiMinus,
-  FiPlus,
-  FiX,
-} from "react-icons/fi";
+import { FiMinus, FiPlus } from "react-icons/fi";
+import { useNavigate, useParams } from "react-router-dom";
+
 import {
   useCreateSaleReturnMutation,
+  useGetAccountsQuery,
   useGetSaleQuery,
 } from "../../../api/api";
 import {
-  useNavigate,
-  useParams,
-} from "react-router-dom";
+  Card,
+  ErrorBox,
+  MethodAndAccount,
+  ModalFooter,
+  ModalHeader,
+  StatusBadge,
+  SummaryRow,
+} from "./SaleModalParts";
+import {
+  FIELD,
+  LABEL,
+  apiErrorMessage,
+  customerName,
+  etb,
+  type PaymentMethod,
+} from "./saleHelpers";
 
 // ============================================================
 // TYPES
 // ============================================================
-
-type RefundMethod =
-  | "CASH"
-  | "BANK"
-  | "CARD"
-  | "MOBILE";
 
 type ReturnItem = {
   saleItemId: number;
@@ -35,33 +40,27 @@ type ReturnItem = {
   tax: number;
 };
 
+const REASONS = [
+  { value: "CUSTOMER_CHANGED_MIND", label: "Customer changed mind" },
+  { value: "DAMAGED", label: "Damaged product" },
+  { value: "WRONG_PRODUCT", label: "Wrong product" },
+  { value: "DEFECTIVE", label: "Defective product" },
+  { value: "OTHER", label: "Other" },
+];
+
 // ============================================================
 // COMPONENT
 // ============================================================
 
 export default function ReturnSale() {
-  // ============================================================
-  // API
-  // ============================================================
-
-  const [
-    createSaleReturn,
-    { isLoading: isReturning },
-  ] = useCreateSaleReturnMutation();
-
-  // ============================================================
-  // ROUTER
-  // ============================================================
+  const [createSaleReturn, { isLoading: isReturning }] =
+    useCreateSaleReturnMutation();
 
   const { id } = useParams<{ id: string }>();
-
   const navigate = useNavigate();
+  const close = () => navigate(-1);
 
   const saleId = Number(id);
-
-  // ============================================================
-  // GET SALE
-  // ============================================================
 
   const {
     data: sale,
@@ -71,804 +70,301 @@ export default function ReturnSale() {
     skip: !id || Number.isNaN(saleId),
   });
 
-  // ============================================================
-  // STATE
-  // ============================================================
+  const { data: accounts = [] } = useGetAccountsQuery();
 
-  const [returnItems, setReturnItems] =
-    useState<ReturnItem[]>([]);
+  const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [refundMethod, setRefundMethod] = useState<PaymentMethod>("CASH");
+  const [accountId, setAccountId] = useState<number | null>(null);
+  const [error, setError] = useState("");
 
-  const [reason, setReason] =
-    useState("");
-
-  const [notes, setNotes] =
-    useState("");
-
-  const [refundMethod, setRefundMethod] =
-    useState<RefundMethod>("CASH");
-
-  // ============================================================
-  // LOADING
-  // ============================================================
-
-  if (isLoading) {
+  if (isLoading || isError || !sale) {
     return (
-      <div className="p-6">
-        <p className="text-gray-500">
-          Loading sale...
+      <>
+        <ModalHeader title="Return Sale" onClose={close} />
+        <p className={`p-6 text-center text-sm ${isLoading ? "text-[#646B72]" : "text-red-500"}`}>
+          {isLoading ? "Loading sale..." : "Unable to load sale."}
         </p>
-      </div>
+      </>
     );
   }
 
-  // ============================================================
-  // ERROR
-  // ============================================================
-
-  if (isError || !sale) {
-    return (
-      <div className="p-6">
-        <p className="text-red-500">
-          Unable to load sale.
-        </p>
-      </div>
-    );
-  }
-
-  // ============================================================
-  // SALE ITEMS
-  // ============================================================
+  // ------------------------------------------------------------
+  // Items
+  // ------------------------------------------------------------
 
   const items: ReturnItem[] =
     returnItems.length > 0
       ? returnItems
       : sale.items.map((item) => ({
           saleItemId: item.id,
-
-          productId:
-            item.product?.id ??
-            item.productId,
-
-          productName:
-            item.product?.productName ??
-            "Unknown Product",
-
-          soldQuantity:
-            Number(item.quantity),
-
-          returnedQuantity:
-            Number(
-              item.returnedQuantity ?? 0
-            ),
-
+          productId: item.product?.id ?? item.productId,
+          productName: item.product?.productName ?? "Unknown Product",
+          soldQuantity: Number(item.quantity),
+          returnedQuantity: Number(item.returnedQuantity ?? 0),
           returnQuantity: 0,
-
-          unitPrice:
-            Number(item.unitPrice),
-
-          tax:
-            Number(item.tax ?? 0),
+          unitPrice: Number(item.unitPrice),
+          tax: Number(item.tax ?? 0),
         }));
 
-  // ============================================================
-  // UPDATE RETURN QUANTITY
-  // ============================================================
+  const remainingOf = (item: ReturnItem) =>
+    Math.max(0, item.soldQuantity - item.returnedQuantity);
 
-  const updateReturnQuantity = (
-    saleItemId: number,
-    quantity: number,
-  ) => {
+  const setReturnQuantity = (saleItemId: number, quantity: number) => {
+    setError("");
     setReturnItems(
-      items.map((item) => {
-        if (
-          item.saleItemId !==
-          saleItemId
-        ) {
-          return item;
-        }
-
-        // Remaining quantity
-        const maxReturn = Math.max(
-          0,
-          item.soldQuantity -
-            item.returnedQuantity,
-        );
-
-        return {
-          ...item,
-
-          returnQuantity:
-            Math.max(
-              0,
-              Math.min(
-                quantity,
-                maxReturn,
-              ),
-            ),
-        };
-      }),
+      items.map((item) =>
+        item.saleItemId === saleItemId
+          ? {
+              ...item,
+              returnQuantity: Math.max(0, Math.min(quantity, remainingOf(item))),
+            }
+          : item,
+      ),
     );
   };
 
-  // ============================================================
-  // INCREASE
-  // ============================================================
+  const selectedItems = items.filter((item) => item.returnQuantity > 0);
 
-  const increaseQuantity = (
-    item: ReturnItem,
-  ) => {
-    const maxReturn =
-      Math.max(
-        0,
-        item.soldQuantity -
-          item.returnedQuantity,
+  const itemsToReturn = selectedItems.reduce(
+    (total, item) => total + item.returnQuantity,
+    0,
+  );
+
+  const refundSubtotal = selectedItems.reduce(
+    (total, item) => total + item.returnQuantity * item.unitPrice,
+    0,
+  );
+
+  const refundTax = selectedItems.reduce((total, item) => {
+    const taxPerItem = item.soldQuantity > 0 ? item.tax / item.soldQuantity : 0;
+    return total + taxPerItem * item.returnQuantity;
+  }, 0);
+
+  const refundTotal = refundSubtotal + refundTax;
+
+  // ------------------------------------------------------------
+  // Confirm
+  // ------------------------------------------------------------
+
+  const handleConfirmReturn = async () => {
+    setError("");
+
+    if (selectedItems.length === 0) {
+      setError("Choose at least one item to return.");
+      return;
+    }
+    if (!reason) {
+      setError("Select a return reason.");
+      return;
+    }
+    if (refundMethod !== "CASH" && !accountId) {
+      setError(
+        `Select the ${refundMethod === "MOBILE" ? "wallet or merchant" : "bank"} account for the refund.`,
       );
-
-    if (
-      item.returnQuantity >=
-      maxReturn
-    ) {
       return;
     }
 
-    updateReturnQuantity(
-      item.saleItemId,
-      item.returnQuantity + 1,
-    );
-  };
-
-  // ============================================================
-  // DECREASE
-  // ============================================================
-
-  const decreaseQuantity = (
-    item: ReturnItem,
-  ) => {
-    if (
-      item.returnQuantity <= 0
-    ) {
-      return;
-    }
-
-    updateReturnQuantity(
-      item.saleItemId,
-      item.returnQuantity - 1,
-    );
-  };
-
-  // ============================================================
-  // SELECTED ITEMS
-  // ============================================================
-
-  const selectedItems =
-    items.filter(
-      (item) =>
-        item.returnQuantity > 0,
-    );
-
-  // ============================================================
-  // TOTAL ITEMS
-  // ============================================================
-
-  const itemsToReturn =
-    selectedItems.reduce(
-      (total, item) =>
-        total +
-        item.returnQuantity,
-      0,
-    );
-
-  // ============================================================
-  // REFUND SUBTOTAL
-  // ============================================================
-
-  const refundSubtotal =
-    selectedItems.reduce(
-      (total, item) =>
-        total +
-        item.returnQuantity *
-          item.unitPrice,
-      0,
-    );
-
-  // ============================================================
-  // REFUND TAX
-  // ============================================================
-
-  const refundTax =
-    selectedItems.reduce(
-      (total, item) => {
-        const taxPerItem =
-          item.soldQuantity > 0
-            ? item.tax /
-              item.soldQuantity
-            : 0;
-
-        return (
-          total +
-          taxPerItem *
-            item.returnQuantity
-        );
-      },
-      0,
-    );
-
-  // ============================================================
-  // REFUND TOTAL
-  // ============================================================
-
-  const refundTotal =
-    refundSubtotal +
-    refundTax;
-
-  // ============================================================
-  // CONFIRM RETURN
-  // ============================================================
-
-  const handleConfirmReturn =
-    async () => {
-      // No selected items
-      if (
-        selectedItems.length === 0
-      ) {
-        return;
-      }
-
-      // No reason
-      if (!reason) {
-        return;
-      }
-
-      try {
-        const payload = {
+    try {
+      await createSaleReturn({
+        saleId,
+        data: {
           reason,
-
           refundMethod,
+          ...(refundMethod !== "CASH" && accountId ? { accountId } : {}),
+          notes: notes.trim() || undefined,
+          items: selectedItems.map((item) => ({
+            saleItemId: item.saleItemId,
+            productId: item.productId,
+            quantity: item.returnQuantity,
+          })),
+        },
+      }).unwrap();
 
-          notes:
-            notes.trim() ||
-            undefined,
+      close();
+    } catch (err) {
+      console.error("Return failed:", err);
+      setError(apiErrorMessage(err, "Couldn't save the return. Please try again."));
+    }
+  };
 
-          items:
-            selectedItems.map(
-              (item) => ({
-                saleItemId:
-                  item.saleItemId,
-
-                productId:
-                  item.productId,
-
-                quantity:
-                  item.returnQuantity,
-              }),
-            ),
-        };
-
-        console.log(
-          "RETURN PAYLOAD:",
-          payload,
-        );
-
-        const result =
-          await createSaleReturn({
-            saleId,
-            data: payload,
-          }).unwrap();
-
-        console.log(
-          "RETURN SUCCESS:",
-          result,
-        );
-
-        navigate(-1);
-      } catch (error) {
-        console.error(
-          "RETURN ERROR:",
-          error,
-        );
-      }
-    };
-
-  // ============================================================
+  // ------------------------------------------------------------
   // UI
-  // ============================================================
+  // ------------------------------------------------------------
 
   return (
-    <div className="rounded-xl bg-white">
+    <>
+      <ModalHeader
+        title="Return Sale"
+        subtitle={`${sale.invoiceNumber} · ${customerName(sale.customer)}`}
+        onClose={close}
+      />
 
-      {/* ==================================================
-          HEADER
-      ================================================== */}
-
-      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-
-        <div className="flex items-center gap-3">
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate(-1)
-            }
-            className="rounded-lg p-2 hover:bg-gray-100"
-          >
-            <FiArrowLeft
-              size={20}
-            />
-          </button>
-
-          <h1 className="text-xl font-bold text-gray-900">
-            Return Sale
-          </h1>
-
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            navigate(-1)
-          }
-          className="rounded-lg p-2 hover:bg-gray-100"
-        >
-          <FiX size={20} />
-        </button>
-
-      </div>
-
-      {/* ==================================================
-          SALE INFORMATION
-      ================================================== */}
-
-      <div className="border-b border-gray-200 px-6 py-5">
-
-        <div className="flex items-center justify-between">
-
+      <div className="p-5 space-y-4">
+        {/* ---------------- Sale info ---------------- */}
+        <Card className="p-4 flex flex-wrap items-center justify-between gap-3 text-sm">
           <div>
-
-            <p className="text-sm text-gray-500">
-              Invoice
+            <p className="text-xs text-[#646B72]">Date</p>
+            <p className="font-medium text-text-two">
+              {new Date(sale.createdAt).toLocaleString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </p>
-
-            <p className="font-semibold text-gray-900">
-              {sale.invoiceNumber}
-            </p>
-
-            <p className="mt-1 text-sm text-gray-500">
-              {new Date(
-                sale.createdAt,
-              ).toLocaleString()}
-            </p>
-
           </div>
+          <div>
+            <p className="text-xs text-[#646B72]">Grand Total</p>
+            <p className="font-medium text-text-two tabular-nums">{etb(sale.total)}</p>
+          </div>
+          <StatusBadge status={sale.status} />
+        </Card>
 
-          <span className="rounded-full bg-green-500 px-3 py-1.5 text-sm font-medium text-white">
-            {sale.status}
-          </span>
-
-        </div>
-
-      </div>
-
-      {/* ==================================================
-          ITEMS
-      ================================================== */}
-
-      <div className="px-6 py-5">
-
-        <h2 className="mb-4 text-sm font-semibold text-gray-900">
-          SELECT ITEMS TO RETURN
-        </h2>
-
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-
-          <table className="w-full">
-
-            <thead>
-
-              <tr className="border-b border-gray-200 bg-gray-50 text-sm text-gray-500">
-
-                <th className="px-4 py-3 text-left">
-                  Product
-                </th>
-
-                <th className="px-4 py-3 text-center">
-                  Sold Qty
-                </th>
-
-                <th className="px-4 py-3 text-center">
-                  Returned
-                </th>
-
-                <th className="px-4 py-3 text-center">
-                  Remaining
-                </th>
-
-                <th className="px-4 py-3 text-center">
-                  Return Qty
-                </th>
-
-                <th className="px-4 py-3 text-right">
-                  Price
-                </th>
-
-                <th className="px-4 py-3 text-right">
-                  Total
-                </th>
-
-              </tr>
-
-            </thead>
-
-            <tbody>
-
-              {items.map(
-                (item) => {
-
-                  const maxReturn =
-                    Math.max(
-                      0,
-                      item.soldQuantity -
-                        item.returnedQuantity,
-                    );
+        {/* ---------------- Items ---------------- */}
+        <Card className="overflow-hidden">
+          <div className="px-4 py-3 text-sm font-semibold text-text-two">
+            Select items to return
+          </div>
+          <div className="overflow-x-auto border-t border-[#E6EAED]">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200 text-left font-semibold text-gray-700">
+                  <th className="px-4 py-3">Product</th>
+                  <th className="px-4 py-3 text-center">Sold</th>
+                  <th className="px-4 py-3 text-center">Returned</th>
+                  <th className="px-4 py-3 text-center">Remaining</th>
+                  <th className="px-4 py-3 text-center">Return Qty</th>
+                  <th className="px-4 py-3 text-right">Price</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => {
+                  const remaining = remainingOf(item);
 
                   return (
-                    <tr
-                      key={
-                        item.saleItemId
-                      }
-                      className="border-b border-gray-100 last:border-0"
-                    >
-
-                      {/* PRODUCT */}
-
-                      <td className="px-4 py-4">
-
-                        <p className="font-medium text-gray-900">
-                          {
-                            item.productName
-                          }
-                        </p>
-
+                    <tr key={item.saleItemId} className="border-b border-gray-100 last:border-0">
+                      <td className="px-4 py-3 font-medium text-text-two">{item.productName}</td>
+                      <td className="px-4 py-3 text-center">{item.soldQuantity}</td>
+                      <td className="px-4 py-3 text-center">{item.returnedQuantity}</td>
+                      <td className={`px-4 py-3 text-center font-medium ${remaining === 0 ? "text-red-500" : ""}`}>
+                        {remaining}
                       </td>
-
-                      {/* SOLD */}
-
-                      <td className="px-4 py-4 text-center text-gray-700">
-                        {
-                          item.soldQuantity
-                        }
-                      </td>
-
-                      {/* RETURNED */}
-
-                      <td className="px-4 py-4 text-center font-medium text-gray-700">
-                        {
-                          item.returnedQuantity
-                        }
-                      </td>
-
-                      {/* REMAINING */}
-
-                      <td className="px-4 py-4 text-center">
-
-                        <span
-                          className={
-                            maxReturn ===
-                            0
-                              ? "font-medium text-red-500"
-                              : "font-medium text-gray-700"
-                          }
-                        >
-                          {maxReturn}
-                        </span>
-
-                      </td>
-
-                      {/* RETURN QUANTITY */}
-
-                      <td className="px-4 py-4">
-
+                      <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2">
-
                           <button
                             type="button"
-                            disabled={
-                              item.returnQuantity <=
-                              0
-                            }
-                            onClick={() =>
-                              decreaseQuantity(
-                                item,
-                              )
-                            }
-                            className="rounded-md border border-gray-300 p-1.5 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="Decrease"
+                            disabled={item.returnQuantity <= 0}
+                            onClick={() => setReturnQuantity(item.saleItemId, item.returnQuantity - 1)}
+                            className="w-7 h-7 flex items-center justify-center rounded-md border border-[#E6EAED] text-[#646B72] hover:bg-[#FE9F43] hover:text-white hover:border-[#FE9F43] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#646B72]"
                           >
-                            <FiMinus
-                              size={14}
-                            />
+                            <FiMinus size={14} />
                           </button>
-
-                          <span className="w-8 text-center font-medium">
-                            {
-                              item.returnQuantity
-                            }
+                          <span className="w-7 text-center font-semibold tabular-nums">
+                            {item.returnQuantity}
                           </span>
-
                           <button
                             type="button"
-                            disabled={
-                              item.returnQuantity >=
-                                maxReturn ||
-                              maxReturn ===
-                                0
-                            }
-                            onClick={() =>
-                              increaseQuantity(
-                                item,
-                              )
-                            }
-                            className="rounded-md border border-gray-300 p-1.5 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="Increase"
+                            disabled={item.returnQuantity >= remaining}
+                            onClick={() => setReturnQuantity(item.saleItemId, item.returnQuantity + 1)}
+                            className="w-7 h-7 flex items-center justify-center rounded-md border border-[#E6EAED] text-[#646B72] hover:bg-[#FE9F43] hover:text-white hover:border-[#FE9F43] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#646B72]"
                           >
-                            <FiPlus
-                              size={14}
-                            />
+                            <FiPlus size={14} />
                           </button>
-
                         </div>
-
                       </td>
-
-                      {/* PRICE */}
-
-                      <td className="px-4 py-4 text-right text-gray-700">
-                        ETB{" "}
-                        {item.unitPrice.toFixed(
-                          2,
-                        )}
+                      <td className="px-4 py-3 text-right tabular-nums">{etb(item.unitPrice)}</td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums">
+                        {etb(item.returnQuantity * item.unitPrice)}
                       </td>
-
-                      {/* TOTAL */}
-
-                      <td className="px-4 py-4 text-right font-medium text-gray-900">
-                        ETB{" "}
-                        {(
-                          item.returnQuantity *
-                          item.unitPrice
-                        ).toFixed(2)}
-                      </td>
-
                     </tr>
                   );
-                },
-              )}
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-
-      {/* ==================================================
-          REFUND METHOD
-      ================================================== */}
-
-      <div className="border-t border-gray-200 px-6 py-5">
-
-        <div className="mb-5">
-
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Refund Method
-          </label>
-
-          <select
-            value={refundMethod}
-            onChange={(event) =>
-              setRefundMethod(
-                event.target
-                  .value as RefundMethod,
-              )
-            }
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-
-            <option value="CASH">
-              Cash
-            </option>
-
-            <option value="BANK">
-              Bank
-            </option>
-
-            <option value="CARD">
-              Card
-            </option>
-
-            <option value="MOBILE">
-              Mobile Wallet
-            </option>
-
-          </select>
-
-        </div>
-
-        {/* ==================================================
-            RETURN REASON
-        ================================================== */}
-
-        <div className="mb-5">
-
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Return Reason
-          </label>
-
-          <select
-            value={reason}
-            onChange={(event) =>
-              setReason(
-                event.target.value,
-              )
-            }
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-
-            <option value="">
-              Select return reason
-            </option>
-
-            <option value="CUSTOMER_CHANGED_MIND">
-              Customer changed mind
-            </option>
-
-            <option value="DAMAGED">
-              Damaged product
-            </option>
-
-            <option value="WRONG_PRODUCT">
-              Wrong product
-            </option>
-
-            <option value="DEFECTIVE">
-              Defective product
-            </option>
-
-            <option value="OTHER">
-              Other
-            </option>
-
-          </select>
-
-        </div>
-
-        {/* ==================================================
-            NOTES
-        ================================================== */}
-
-        <div>
-
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Notes
-          </label>
-
-          <textarea
-            value={notes}
-            onChange={(event) =>
-              setNotes(
-                event.target.value,
-              )
-            }
-            rows={3}
-            placeholder="Optional notes..."
-            className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* ---------------- Refund details ---------------- */}
+        <Card className="p-4 space-y-3">
+          <MethodAndAccount
+            methodLabel="Refund Method"
+            method={refundMethod}
+            onMethodChange={(method) => {
+              setRefundMethod(method);
+              setError("");
+            }}
+            accountId={accountId}
+            onAccountChange={setAccountId}
+            accounts={accounts}
+            disabled={isReturning}
           />
 
+          <div>
+            <label htmlFor="return-reason" className={LABEL}>
+              Return Reason <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="return-reason"
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value);
+                setError("");
+              }}
+              disabled={isReturning}
+              className={FIELD}
+            >
+              <option value="">Select return reason</option>
+              {REASONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="return-notes" className={LABEL}>
+              Notes
+            </label>
+            <textarea
+              id="return-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Optional notes..."
+              disabled={isReturning}
+              className={`${FIELD} resize-none`}
+            />
+          </div>
+        </Card>
+
+        {/* ---------------- Summary ---------------- */}
+        <div className="flex justify-end">
+          <Card className="w-full sm:w-80 px-4 py-3">
+            <SummaryRow label="Items to return" value={String(itemsToReturn)} />
+            <SummaryRow label="Refund subtotal" value={etb(refundSubtotal)} />
+            <SummaryRow label="Tax refund" value={etb(refundTax)} />
+            <SummaryRow label="Refund Total" value={etb(refundTotal)} strong />
+          </Card>
         </div>
 
+        <ErrorBox message={error} />
       </div>
 
-      {/* ==================================================
-          SUMMARY
-      ================================================== */}
-
-      <div className="border-t border-gray-200 px-6 py-5">
-
-        <div className="ml-auto w-full space-y-3 md:w-80">
-
-          <div className="flex justify-between text-sm">
-
-            <span className="text-gray-500">
-              Items to return
-            </span>
-
-            <span className="font-medium text-gray-900">
-              {itemsToReturn}
-            </span>
-
-          </div>
-
-          <div className="flex justify-between text-sm">
-
-            <span className="text-gray-500">
-              Refund subtotal
-            </span>
-
-            <span className="font-medium text-gray-900">
-              ETB{" "}
-              {refundSubtotal.toFixed(
-                2,
-              )}
-            </span>
-
-          </div>
-
-          <div className="flex justify-between text-sm">
-
-            <span className="text-gray-500">
-              Tax refund
-            </span>
-
-            <span className="font-medium text-gray-900">
-              ETB{" "}
-              {refundTax.toFixed(2)}
-            </span>
-
-          </div>
-
-          <div className="flex justify-between border-t border-gray-200 pt-3">
-
-            <span className="text-lg font-bold text-gray-900">
-              Refund Total
-            </span>
-
-            <span className="text-lg font-bold text-gray-900">
-              ETB{" "}
-              {refundTotal.toFixed(
-                2,
-              )}
-            </span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* ==================================================
-          ACTIONS
-      ================================================== */}
-
-      <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
-
-        <button
-          type="button"
-          onClick={() =>
-            navigate(-1)
-          }
-          className="rounded-lg border border-gray-300 px-5 py-2.5 hover:bg-gray-50"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          disabled={
-            selectedItems.length ===
-              0 ||
-            !reason ||
-            isReturning
-          }
-          onClick={
-            handleConfirmReturn
-          }
-          className="rounded-lg bg-blue-600 px-5 py-2.5 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isReturning
-            ? "Processing..."
-            : "Confirm Return"}
-        </button>
-
-      </div>
-
-    </div>
+      <ModalFooter
+        onCancel={close}
+        action={{
+          label: isReturning ? "Processing..." : "Confirm Return",
+          onClick: handleConfirmReturn,
+          disabled: isReturning || selectedItems.length === 0 || !reason,
+        }}
+      />
+    </>
   );
 }

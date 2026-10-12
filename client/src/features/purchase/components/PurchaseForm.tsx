@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useState,
   type FormEvent,
 } from "react";
@@ -14,7 +13,6 @@ import {
 } from "../../../store/posSlice";
 
 import {
-  useGetAccountsQuery,
   useGetSuppliersQuery,
   useGetProductsQuery,
   useGetPurchaseQuery,
@@ -27,12 +25,15 @@ type PurchaseFormProps = {
   purchaseId?: number;
 };
 
-type PaymentMethod =
-  | ""
-  | "CASH"
-  | "CARD"
-  | "MOBILE"
-  | "BANK";
+// What the purchase costs, and so what is paid
+function purchaseTotal(line: {
+  quantity: number;
+  purchasePrice: number;
+  discount: number;
+  tax: number;
+}) {
+  return Math.round((line.quantity * line.purchasePrice - line.discount + line.tax) * 100) / 100;
+}
 
 export default function PurchaseForm({
   mode,
@@ -53,9 +54,6 @@ export default function PurchaseForm({
     data: products = [],
     isLoading: isProductsLoading,
   } = useGetProductsQuery();
-
-  const { data: accounts = [] } =
-    useGetAccountsQuery();
 
   // --------------------------------------------------
   // Existing purchase for edit mode
@@ -86,35 +84,8 @@ export default function PurchaseForm({
 
   const [purchaseError, setPurchaseError] =
     useState("");
-  const [paidAmountInput, setPaidAmountInput] =
-    useState("");
   const [sellingPriceInput, setSellingPriceInput] =
     useState("");
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>("");
-  const [selectedAccountId, setSelectedAccountId] =
-    useState<number | null>(null);
-
-  const bankAccounts = useMemo(
-    () =>
-      accounts.filter(
-        (account) =>
-          account.type === "BANK" &&
-          account.status === "ACTIVE",
-      ),
-    [accounts],
-  );
-
-  const walletAccounts = useMemo(
-    () =>
-      accounts.filter(
-        (account) =>
-          (account.type === "WALLET" || account.type === "MERCHANT") &&
-          account.status === "ACTIVE",
-      ),
-    [accounts],
-  );
-
   const getProductSellingPrice = (
     productId: number | string | undefined,
   ) => {
@@ -143,20 +114,6 @@ export default function PurchaseForm({
 
   useEffect(() => {
     if (mode === "edit" && purchase) {
-      const paidAmount =
-        Number(purchase.paidAmount) || 0;
-
-      setPaidAmountInput(
-        paidAmount > 0
-          ? String(paidAmount)
-          : "",
-      );
-      setPaymentMethod(
-        purchase.paymentMethod ?? "",
-      );
-      setSelectedAccountId(
-        purchase.accountId ?? null,
-      );
       setSellingPriceInput(
         getProductSellingPrice(
           purchase.items?.[0]?.productId,
@@ -166,10 +123,7 @@ export default function PurchaseForm({
     }
 
     if (mode === "create") {
-      setPaidAmountInput("");
       setSellingPriceInput("");
-      setPaymentMethod("");
-      setSelectedAccountId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, purchase, products]);
@@ -249,18 +203,13 @@ export default function PurchaseForm({
         ? expiryDateValue
         : "";
 
-    const paidAmount =
-      paidAmountInput.trim() === ""
-        ? 0
-        : Number(paidAmountInput);
-
-    const selectedPaymentMethod =
-      paymentMethod === "CASH" ||
-      paymentMethod === "CARD" ||
-      paymentMethod === "MOBILE" ||
-      paymentMethod === "BANK"
-        ? paymentMethod
-        : undefined;
+    // Purchases are paid in full: quantity × price − discount + tax
+    const paidAmount = purchaseTotal({
+      quantity: Number(quantity) || 0,
+      purchasePrice: Number(purchasePrice) || 0,
+      discount: Number(discount) || 0,
+      tax: Number(tax) || 0,
+    });
 
     // --------------------------------------------------
     // Validation
@@ -337,35 +286,7 @@ export default function PurchaseForm({
       paidAmount < 0
     ) {
       setPurchaseError(
-        "Paid amount cannot be negative.",
-      );
-      return;
-    }
-
-    if (
-      paidAmount > 0 &&
-      paymentMethod !== "CASH" &&
-      paymentMethod !== "CARD" &&
-      paymentMethod !== "MOBILE" &&
-      paymentMethod !== "BANK"
-    ) {
-      setPurchaseError(
-        "Please select a valid payment method.",
-      );
-      return;
-    }
-
-    if (
-      paidAmount > 0 &&
-      paymentMethod !== "CASH" &&
-      selectedAccountId === null
-    ) {
-      setPurchaseError(
-        `Please select a ${
-          paymentMethod === "MOBILE"
-            ? "wallet or merchant"
-            : "bank account"
-        }.`,
+        "The discount can't be more than the purchase amount.",
       );
       return;
     }
@@ -394,18 +315,11 @@ export default function PurchaseForm({
       if (mode === "create") {
         await createPurchase({
           supplierId: Number(supplierId),
-          discount: Number(discount || 0),
-          tax: Number(tax || 0),
+          // Discount / tax are on the item, so not repeated here
+          discount: 0,
+          tax: 0,
+          // Paid in full; record-only, so the server books it as cash
           paidAmount,
-          ...(paidAmount > 0 && {
-            paymentMethod:
-              selectedPaymentMethod,
-            accountId:
-              selectedPaymentMethod ===
-              "CASH"
-                ? null
-                : selectedAccountId,
-          }),
           items: [item],
         }).unwrap();
 
@@ -430,19 +344,17 @@ export default function PurchaseForm({
       await updatePurchase({
         id: purchaseId,
         supplierId: Number(supplierId),
-        discount: Number(discount || 0),
-        tax: Number(tax || 0),
+        discount: 0,
+        tax: 0,
         paidAmount,
+        // Keep how an existing purchase was paid; new payments are cash
         paymentMethod:
           paidAmount > 0
-            ? selectedPaymentMethod
+            ? (purchase?.paymentMethod ?? undefined)
             : undefined,
         accountId:
           paidAmount > 0
-            ? selectedPaymentMethod ===
-              "CASH"
-              ? null
-              : selectedAccountId
+            ? (purchase?.accountId ?? null)
             : null,
         items: [item],
       }).unwrap();
@@ -875,175 +787,6 @@ export default function PurchaseForm({
             disabled={isLoading}
           />
         </div>
-
-        {/* ========================================
-            PAID AMOUNT
-        ======================================== */}
-
-        <div className="flex flex-col items-start mb-4">
-          <label
-            htmlFor="paidAmount"
-            className="text-sm font-medium mb-2"
-          >
-            Paid Amount
-          </label>
-
-          <input
-            id="paidAmount"
-            name="paidAmount"
-            type="number"
-            min="0"
-            step="0.01"
-            value={paidAmountInput}
-            onChange={(event) =>
-              setPaidAmountInput(
-                event.target.value,
-              )
-            }
-            placeholder="Enter paid amount"
-            inputMode="decimal"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 outline-none focus:border-[#FE9F43] disabled:bg-gray-100"
-            disabled={isLoading}
-          />
-        </div>
-
-        {Number(paidAmountInput || 0) > 0 && (
-          <>
-            {/* ========================================
-                PAYMENT METHOD
-            ======================================== */}
-
-            <div className="flex flex-col items-start mb-4">
-              <label
-                htmlFor="paymentMethod"
-                className="text-sm font-medium mb-2"
-              >
-                Payment Method{" "}
-                <span className="text-red-500">
-                  *
-                </span>
-              </label>
-
-              <select
-                id="paymentMethod"
-                name="paymentMethod"
-                value={paymentMethod}
-                onChange={(event) => {
-                  const value =
-                    event.target
-                      .value as PaymentMethod;
-                  setPaymentMethod(value);
-                  setSelectedAccountId(
-                    null,
-                  );
-                }}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 outline-none focus:border-[#FE9F43] bg-white disabled:bg-gray-100"
-                required
-                disabled={isLoading}
-              >
-                <option value="">
-                  Select payment method
-                </option>
-
-                <option value="CASH">
-                  Cash
-                </option>
-
-                <option value="CARD">
-                  Card
-                </option>
-
-                <option value="MOBILE">
-                  Mobile
-                </option>
-
-                <option value="BANK">
-                  Bank
-                </option>
-              </select>
-            </div>
-
-            {paymentMethod !== "" &&
-              paymentMethod !== "CASH" && (
-                <div className="flex flex-col items-start mb-4">
-                  <label
-                    htmlFor="accountId"
-                    className="text-sm font-medium mb-2"
-                  >
-                    {paymentMethod ===
-                    "MOBILE"
-                      ? "Wallet / Merchant Account"
-                      : "Bank Account"}{" "}
-                    <span className="text-red-500">
-                      *
-                    </span>
-                  </label>
-
-                  <select
-                    id="accountId"
-                    name="accountId"
-                    value={
-                      selectedAccountId ??
-                      ""
-                    }
-                    onChange={(
-                      event,
-                    ) => {
-                      const value =
-                        event.target.value;
-                      setSelectedAccountId(
-                        value
-                          ? Number(value)
-                          : null,
-                      );
-                    }}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 outline-none focus:border-[#FE9F43] bg-white disabled:bg-gray-100"
-                    required
-                    disabled={isLoading}
-                  >
-                    <option value="">
-                      Select{" "}
-                      {paymentMethod ===
-                      "MOBILE"
-                        ? "wallet or merchant"
-                        : "bank account"}
-                    </option>
-
-                    {(paymentMethod ===
-                    "MOBILE"
-                      ? walletAccounts
-                      : bankAccounts
-                    ).map((account) => (
-                      <option
-                        key={account.id}
-                        value={account.id}
-                      >
-                        {account.bankName
-                          ? `${account.bankName} - ${account.name} (${account.number})`
-                          : `${account.name} (${account.number})`}
-                  {account.type === "MERCHANT" ? " · Merchant" : account.type === "WALLET" ? " · Wallet" : ""}
-                      </option>
-                    ))}
-                  </select>
-
-                  {(paymentMethod ===
-                  "MOBILE"
-                    ? walletAccounts
-                    : bankAccounts
-                  ).length === 0 && (
-                    <p className="mt-1 text-xs text-red-500">
-                      No active{" "}
-                      {paymentMethod ===
-                      "MOBILE"
-                        ? "wallet or merchant"
-                        : "bank accounts"}{" "}
-                      available.
-                    </p>
-                  )}
-                </div>
-              )}
-          </>
-        )}
       </div>
 
       {/* ========================================

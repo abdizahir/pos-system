@@ -1,22 +1,7 @@
-import { useDispatch, useSelector } from "react-redux";
-import type { RootState } from "../../../store/store";
-import Button from "../../../components/Button";
-import DialogModal from "../../../components/DialogModal";
-import { closeCreateSale, openCreateSale } from "../../../store/posSlice";
+import { Outlet } from "react-router-dom";
 import SaleTable from "../components/SaleTable";
-import CrateSale from "../components/CreateSale";
 
 export default function SalePage() {
-  const dispatch = useDispatch();
-
-  const isCreateSaleModalOpen = useSelector(
-    (state: RootState) => state.pos.isCreateSaleModalOpen
-  );
-
-  const handleOpenCreateSale = () => {
-    dispatch(openCreateSale());
-  };
-
   return (
     <section className="bg-[#F7F7F7] p-6">
       <article className="flex items-center justify-between mb-6">
@@ -29,18 +14,12 @@ export default function SalePage() {
             Manage your Sale
           </p>
         </div>
-
-        <Button
-          name="Add Sale"
-          onClick={handleOpenCreateSale}
-        />
       </article>
 
       <SaleTable />
 
-      <DialogModal onClick={() => dispatch(closeCreateSale())} open={isCreateSaleModalOpen}>
-        <CrateSale />
-      </DialogModal>
+      {/* View / Resume / Return / Cancel modals (child routes) */}
+      <Outlet />
     </section>
   );
 }

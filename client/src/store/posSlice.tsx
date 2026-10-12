@@ -12,7 +12,6 @@ type PosState = {
   isCreateCustomerModalOpen: boolean;
   isEditCustomerModalOpen: boolean;
   isDeleteCustomerModalOpen: boolean;
-  isPaySupplierModalOpen: boolean;
   isEditSupplierModalOpen: boolean;
 
   SupplierId: number | null;
@@ -33,7 +32,6 @@ type PosState = {
   isEditAccountsModalOpen: boolean;
   isDeleteAccountModalOpen: boolean;
 
-  isCreateMoneyTransferModalOpen: boolean;
 };
 
 const initialState: PosState = {
@@ -46,7 +44,6 @@ const initialState: PosState = {
   isEditStockModalOpen: false,
   isCreateSaleModalOpen: false,
   isSaleDetailsModalOpen: false,
-  isPaySupplierModalOpen: false,
   isCreateSupplierModalOpen: false,
   isCreateCustomerModalOpen: false,
   isEditCustomerModalOpen: false,
@@ -63,7 +60,6 @@ const initialState: PosState = {
   isCreateAccountsModalOpen: false,
   isEditAccountsModalOpen: false,
   isDeleteAccountModalOpen: false,
-  isCreateMoneyTransferModalOpen: false,
 };
 
 const posSlice = createSlice({
@@ -148,12 +144,6 @@ const posSlice = createSlice({
     closeCreateSupplier: (state) => {
       state.isCreateSupplierModalOpen = false;
     },
-    openPaySupplier: (state) => {
-      state.isPaySupplierModalOpen = true;
-    },
-    closePaySupplier: (state) => {
-      state.isPaySupplierModalOpen = false;
-    },
     openEditSupplier: (state) => {
       state.isEditSupplierModalOpen = true;
     },
@@ -222,12 +212,6 @@ const posSlice = createSlice({
     closeDeleteAccounts: (state) => {
       state.isDeleteAccountModalOpen = false;
     },
-    openCreateMoneyTransfer: (state) => {
-      state.isCreateMoneyTransferModalOpen = true;
-    },
-    closeCreateMoneyTransfer: (state) => {
-      state.isCreateMoneyTransferModalOpen = false;
-    },
   },
 });
 
@@ -246,8 +230,6 @@ export const {
   closeSaleDetails,
   openCreateSupplier,
   closeCreateSupplier,
-  openPaySupplier,
-  closePaySupplier,
   openEditSupplier,
   closeEditSupplier,
   openDeleteSupplier,
@@ -273,8 +255,6 @@ export const {
   closeEditAccounts,
   openDeleteAccounts,
   closeDeleteAccounts,
-  openCreateMoneyTransfer,
-  closeCreateMoneyTransfer,
   openCreateCustomer,
   closeCreateCustomer,
   openEditCustomer,

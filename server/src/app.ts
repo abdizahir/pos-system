@@ -12,17 +12,11 @@ import supplierRouter from "./routes/supplier.routes.js";
 import purchaseRouter from "./routes/purchase.routes.js";
 import expenseRouter from "./routes/expense.routes.js";
 import accountsRoutes from "./routes/accounts.routes.js";
-import incomeRoutes from "./routes/income.routes.js";
 import journalEntryRoutes from "./routes/journalEntry.routes.js";
 import reportRoutes from "./routes/report.routes.js";
-import trialBalance from "./routes/trial-balance.routes.js";
-import balanceSheetRoutes from "./routes/balanceSheet.routes.js";
-import moneyTransferRoutes from "./routes/moneyTransfer.routes.js";
 import customerRoutes from "./routes/customer.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 import payrollRoutes from "./routes/payroll.routes.js";
-import ownerRoutes from "./routes/owner.routes.js";
-import cashFlowRoutes from "./routes/cashFlow.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 
 import helmet from "helmet";
@@ -35,7 +29,6 @@ import {
   managementForWrites,
   requireManagement,
 } from "./middleware/auth.middleware.js";
-import staffRoutes from "./routes/staff.routes.js";
 
 const app = express();
 
@@ -94,17 +87,10 @@ app.use("/api", supplierRouter);
 app.use("/api/dashboard", requireManagement, dashboardRoutes);
 app.use("/api/purchases", requireManagement, purchaseRouter);
 app.use("/api/expenses", requireManagement, expenseRouter);
-app.use("/api/incomes", requireManagement, incomeRoutes);
-app.use("/api/money-transfers", requireManagement, moneyTransferRoutes);
 app.use("/api/journal-entries", requireManagement, journalEntryRoutes);
 app.use("/api/employees", requireManagement, employeeRoutes);
 app.use("/api/payroll", requireManagement, payrollRoutes);
-app.use("/api/owners", requireManagement, ownerRoutes);
 app.use("/api/reports", requireManagement, reportRoutes);
-app.use("/api/trial", requireManagement, trialBalance);
-app.use("/api/cash-flow", requireManagement, cashFlowRoutes);
-app.use("/api/balance-sheet", requireManagement, balanceSheetRoutes);
-app.use("/api/staff", requireManagement, staffRoutes);
 
 // User accounts are managed on the server: npm run users -- help
 

@@ -1,12 +1,26 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { FiArrowLeft, FiMoreVertical, FiPrinter } from "react-icons/fi";
+
 import { useGetSaleQuery } from "../../../api/api";
+import {
+  Card,
+  ModalFooter,
+  ModalHeader,
+  StatusBadge,
+  SummaryRow,
+} from "./SaleModalParts";
+import { customerName, etb } from "./saleHelpers";
 
-
+const METHOD_LABELS: Record<string, string> = {
+  CASH: "Cash",
+  CARD: "Card",
+  MOBILE: "Mobile",
+  BANK: "Bank",
+};
 
 export default function SaleDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const close = () => navigate(-1);
 
   const saleId = Number(id);
 
@@ -18,196 +32,119 @@ export default function SaleDetails() {
     skip: !id || Number.isNaN(saleId),
   });
 
-  if (isLoading) {
+  if (isLoading || isError || !sale) {
     return (
-      <div className="p-6">
-        <p className="text-gray-500">Loading sale details...</p>
-      </div>
+      <>
+        <ModalHeader title="Sale Details" onClose={close} />
+        <p className={`p-6 text-center text-sm ${isLoading ? "text-[#646B72]" : "text-red-500"}`}>
+          {isLoading ? "Loading sale details..." : "Unable to load sale details."}
+        </p>
+      </>
     );
   }
 
-  if (isError || !sale) {
-    return (
-      <div className="p-6">
-        <p className="text-red-500">Unable to load sale details.</p>
-      </div>
-    );
-  }
+  const methods = [...new Set((sale.payments ?? []).map((p) => METHOD_LABELS[p.method] ?? p.method))];
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-        >
-          <FiArrowLeft size={20} />
-          <span>Sales</span>
-        </button>
+    <>
+      <ModalHeader
+        title="Sale Details"
+        subtitle={sale.invoiceNumber}
+        onClose={close}
+      />
 
-        <div className="flex items-center gap-3">
-          <button onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer"
-          >
-            <FiPrinter size={18} />
-            Print
-          </button>
-
-          <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
-            <FiMoreVertical size={20} />
-          </button>
-        </div>
-      </div>
-
-      {/* Sale Header */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {sale.invoiceNumber}
-            </h1>
-
-            <p className="mt-1 text-sm text-gray-500">
-              {new Date(sale.createdAt).toLocaleString()}
-            </p>
-          </div>
-
-          <span
-            className={`px-3 py-1.5 rounded-full text-sm font-medium text-white ${
-              sale.status === "COMPLETED"
-                ? "bg-green-500"
-                : sale.status === "PENDING"
-                  ? "bg-yellow-500"
-                  : sale.status === "CANCELLED"
-                    ? "bg-red-500"
-                    : "bg-gray-500"
-            }`}
-          >
-            {sale.status}
-          </span>
-        </div>
-
-        {/* Customer / Payment */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-6 border-t border-gray-200">
-          <div>
-            <h2 className="text-sm font-medium text-gray-500 mb-2">Customer</h2>
-
-            <p className="font-semibold text-gray-900">Walk-in Customer</p>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-medium text-gray-500 mb-2">Payment</h2>
-
-            <p className="font-semibold text-gray-900">
-              {sale.payments?.[0]?.method || "N/A"}
-            </p>
-
-            <div className="mt-2 space-y-1 text-sm text-gray-500">
-              <p>
-                Paid:{" "}
-                <span className="text-gray-900 font-medium">
-                  ${sale.paidAmount}
-                </span>
+      <div className="p-5 space-y-4">
+        {/* ---------------- Summary ---------------- */}
+        <Card className="p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-[#646B72] mb-1">Status</p>
+              <StatusBadge status={sale.status} />
+            </div>
+            <div>
+              <p className="text-xs text-[#646B72] mb-1">Date</p>
+              <p className="font-medium text-text-two">
+                {new Date(sale.createdAt).toLocaleString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </p>
-
-              <p>
-                Change:{" "}
-                <span className="text-gray-900 font-medium">
-                  ${sale.changeAmount}
-                </span>
+            </div>
+            <div>
+              <p className="text-xs text-[#646B72] mb-1">Customer</p>
+              <p className="font-medium text-text-two">{customerName(sale.customer)}</p>
+              {sale.customer?.phone && (
+                <p className="text-xs text-[#646B72]">{sale.customer.phone}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-[#646B72] mb-1">Payment</p>
+              <p className="font-medium text-text-two">
+                {methods.length > 0 ? methods.join(", ") : "Not paid"}
               </p>
             </div>
           </div>
-        </div>
+        </Card>
 
-        {/* Items */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">ITEMS</h2>
-
+        {/* ---------------- Items ---------------- */}
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 text-left text-sm text-gray-500">
-                  <th className="py-3 pr-4">Product</th>
-                  <th className="py-3 px-4">SKU</th>
-                  <th className="py-3 px-4 text-center">Qty</th>
-                  <th className="py-3 px-4 text-right">Price</th>
-                  <th className="py-3 px-4 text-right">Tax</th>
-                  <th className="py-3 pl-4 text-right">Total</th>
+                <tr className="bg-gray-50 border-b border-gray-200 text-left font-semibold text-gray-700">
+                  <th className="px-4 py-3">Product</th>
+                  <th className="px-4 py-3">SKU</th>
+                  <th className="px-4 py-3 text-center">Qty</th>
+                  <th className="px-4 py-3 text-right">Price</th>
+                  <th className="px-4 py-3 text-right">Tax</th>
+                  <th className="px-4 py-3 text-right">Total</th>
                 </tr>
               </thead>
-
               <tbody>
                 {sale.items.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-gray-100 last:border-0"
-                  >
-                    <td className="py-4 pr-4 font-medium text-gray-900">
-                      {item.product?.productName || "Unknown Product"}
+                  <tr key={item.id} className="border-b border-gray-100 last:border-0">
+                    <td className="px-4 py-3 font-medium text-text-two">
+                      {item.product?.productName ?? "Unknown Product"}
+                      {item.returnedQuantity > 0 && (
+                        <span className="ml-2 text-xs font-normal text-blue-600">
+                          {item.returnedQuantity} returned
+                        </span>
+                      )}
                     </td>
-
-                    <td className="py-4 px-4 text-gray-500">
-                      {item.product?.sku || "-"}
-                    </td>
-
-                    <td className="py-4 px-4 text-center text-gray-700">
-                      {item.quantity}
-                    </td>
-
-                    <td className="py-4 px-4 text-right text-gray-700">
-                      ${item.unitPrice}
-                    </td>
-
-                    <td className="py-4 px-4 text-right text-gray-700">
-                      ${item.tax}
-                    </td>
-
-                    <td className="py-4 pl-4 text-right font-medium text-gray-900">
-                      ${item.lineTotal}
-                    </td>
+                    <td className="px-4 py-3 text-[#646B72]">{item.product?.sku ?? "—"}</td>
+                    <td className="px-4 py-3 text-center">{item.quantity}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{etb(item.unitPrice)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{etb(item.tax)}</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums">{etb(item.lineTotal)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
-        {/* Summary */}
-        <div className="flex justify-end mt-8 pt-6 border-t border-gray-200">
-          <div className="w-full md:w-80 space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Subtotal</span>
-              <span className="font-medium text-gray-900">
-                ${sale.subtotal}
-              </span>
-            </div>
-
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Discount</span>
-              <span className="font-medium text-gray-900">
-                -${sale.discount}
-              </span>
-            </div>
-
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Tax</span>
-              <span className="font-medium text-gray-900">${sale.tax}</span>
-            </div>
-
-            <div className="border-t border-gray-200 pt-3 flex justify-between">
-              <span className="text-lg font-bold text-gray-900">
-                Grand Total
-              </span>
-
-              <span className="text-lg font-bold text-gray-900">
-                ${sale.total}
-              </span>
-            </div>
-          </div>
+        {/* ---------------- Totals ---------------- */}
+        <div className="flex justify-end">
+          <Card className="w-full sm:w-80 px-4 py-3">
+            <SummaryRow label="Subtotal" value={etb(sale.subtotal)} />
+            <SummaryRow label="Discount" value={`− ${etb(sale.discount)}`} />
+            <SummaryRow label="Tax" value={etb(sale.tax)} />
+            <SummaryRow label="Grand Total" value={etb(sale.total)} strong />
+            <SummaryRow label="Paid" value={etb(sale.paidAmount)} tone="green" />
+            {Number(sale.changeAmount) > 0 && (
+              <SummaryRow label="Change" value={etb(sale.changeAmount)} />
+            )}
+            {Number(sale.dueAmount) > 0 && (
+              <SummaryRow label="Due" value={etb(sale.dueAmount)} tone="red" />
+            )}
+          </Card>
         </div>
       </div>
-    </div>
+
+      <ModalFooter onCancel={close} cancelLabel="Close" />
+    </>
   );
 }

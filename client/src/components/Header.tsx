@@ -18,9 +18,10 @@ import {
   FiMonitor,
   FiPackage,
   FiSearch,
+  FiUser,
 } from "react-icons/fi";
 
-import { useGetProductAlertsQuery } from "../api/api";
+import { useGetOverdueSalesQuery, useGetProductAlertsQuery } from "../api/api";
 import { clearToken } from "../features/auth/auth.slice";
 import { openSidebar } from "../store/posSlice";
 import type { RootState } from "../store/store";
@@ -59,7 +60,6 @@ const SEARCH_ITEMS: SearchItem[] = [
 // Title for the current page, e.g. { group: "Reports", title: "Balance Sheet" }
 function pageTitle(pathname: string) {
   if (pathname.startsWith("/pos")) return { group: "Sales", title: "Point of Sale" };
-  if (pathname.startsWith("/money-overview/")) return { group: "Finance", title: "Statement" };
 
   for (const group of NAV_GROUPS) {
     const item = group.items.find((entry) => isPathActive(pathname, entry.to));
@@ -226,15 +226,23 @@ function QuickSearch() {
 }
 
 // ============================================================
-// NOTIFICATIONS (stock alerts)
+// NOTIFICATIONS (overdue customer dues + stock alerts)
 // ============================================================
 
-function StockAlerts() {
+function formatEtb(value: number) {
+  return `ETB ${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function Notifications() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
   // Small counts from the server instead of every product + batch
   const { data: counts } = useGetProductAlertsQuery(undefined, {
+    pollingInterval: 5 * 60 * 1000,
+  });
+  // Credit sales still unpaid a week after the sale day
+  const { data: overdue } = useGetOverdueSalesQuery(undefined, {
     pollingInterval: 5 * 60 * 1000,
   });
 
@@ -252,7 +260,14 @@ function StockAlerts() {
     ].filter((alert) => alert.count > 0);
   }, [counts]);
 
-  const total = alerts.reduce((sum, alert) => sum + alert.count, 0);
+  const overdueCount = overdue?.count ?? 0;
+  const overdueSales = overdue?.sales ?? [];
+  const total = alerts.reduce((sum, alert) => sum + alert.count, 0) + overdueCount;
+
+  const go = (to: string) => {
+    navigate(to);
+    setOpen(false);
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -260,8 +275,8 @@ function StockAlerts() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={iconButton}
-        title="Stock alerts"
-        aria-label={`Stock alerts${total ? `: ${total}` : ""}`}
+        title="Notifications"
+        aria-label={`Notifications${total ? `: ${total}` : ""}`}
       >
         <FiBell size={18} />
         {total > 0 && (
@@ -272,40 +287,97 @@ function StockAlerts() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-[#EEF0F3] bg-white shadow-xl">
+        <div className="absolute right-0 top-12 z-50 w-88 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#EEF0F3] bg-white shadow-xl">
           <div className="border-b border-[#F1F5F9] px-4 py-3">
-            <p className="font-semibold text-[#0F172A]">Stock alerts</p>
-            <p className="text-xs text-[#94A3B8]">Things on your shelves that need attention</p>
+            <p className="font-semibold text-[#0F172A]">Notifications</p>
+            <p className="text-xs text-[#94A3B8]">Things that need your attention</p>
           </div>
 
-          {alerts.length === 0 ? (
+          {total === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
               <FiCheckCircle className="text-emerald-500" size={22} />
-              <p className="text-sm text-[#64748B]">All stock looks good.</p>
+              <p className="text-sm text-[#64748B]">All caught up.</p>
             </div>
           ) : (
-            <ul className="p-1.5">
-              {alerts.map(({ key, count, label, icon: Icon, tone, to }) => (
-                <li key={key}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate(to);
-                      setOpen(false);
-                    }}
-                    className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-[#F8FAFC]"
-                  >
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${tone}`}>
-                      <Icon size={16} />
-                    </span>
-                    <span className="text-sm text-[#475569]">
-                      <span className="font-semibold text-[#0F172A]">{count}</span>{" "}
-                      {count === 1 ? label.replace("batches", "batch").replace("expire", "expires") : label}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div className="max-h-[70vh] overflow-y-auto">
+              {/* ---------------- Overdue customer dues ---------------- */}
+              {overdueCount > 0 && (
+                <section className="p-1.5">
+                  <div className="flex items-center justify-between px-3 pt-1.5 pb-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#94A3B8]">
+                      Customer dues · over {overdue?.overdueAfterDays ?? 7} days
+                    </p>
+                    <p className="text-xs font-semibold text-red-500">{formatEtb(overdue?.totalDue ?? 0)}</p>
+                  </div>
+                  <ul>
+                    {overdueSales.map((sale) => (
+                      <li key={sale.id}>
+                        <button
+                          type="button"
+                          onClick={() => go(`/sales/${sale.id}`)}
+                          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-[#F8FAFC]"
+                        >
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-red-50 text-red-500">
+                            <FiUser size={16} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-[#0F172A]">
+                              {sale.customer
+                                ? `${sale.customer.fname} ${sale.customer.lname}`
+                                : "Walk-in Customer"}
+                            </span>
+                            <span className="block truncate text-xs text-[#94A3B8]">
+                              {sale.invoiceNumber} · {sale.daysSinceSale} days ago
+                              {sale.customer?.phone ? ` · ${sale.customer.phone}` : ""}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-sm font-semibold tabular-nums text-red-500">
+                            {formatEtb(sale.dueAmount)}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  {overdueCount > overdueSales.length && (
+                    <button
+                      type="button"
+                      onClick={() => go("/sales")}
+                      className="w-full cursor-pointer rounded-xl px-3 py-2 text-center text-xs font-medium text-[#FE9F43] hover:bg-[#FFF7ED]"
+                    >
+                      +{overdueCount - overdueSales.length} more overdue sales
+                    </button>
+                  )}
+                </section>
+              )}
+
+              {/* ---------------- Stock alerts ---------------- */}
+              {alerts.length > 0 && (
+                <section className={`p-1.5 ${overdueCount > 0 ? "border-t border-[#F1F5F9]" : ""}`}>
+                  <p className="px-3 pt-1.5 pb-1 text-xs font-semibold uppercase tracking-wide text-[#94A3B8]">
+                    Stock
+                  </p>
+                  <ul>
+                    {alerts.map(({ key, count, label, icon: Icon, tone, to }) => (
+                      <li key={key}>
+                        <button
+                          type="button"
+                          onClick={() => go(to)}
+                          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-[#F8FAFC]"
+                        >
+                          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${tone}`}>
+                            <Icon size={16} />
+                          </span>
+                          <span className="text-sm text-[#475569]">
+                            <span className="font-semibold text-[#0F172A]">{count}</span>{" "}
+                            {count === 1 ? label.replace("batches", "batch").replace("expire", "expires") : label}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -434,7 +506,7 @@ export default function Header() {
           >
             <FiMonitor size={18} />
           </button>
-          {isManagement && <StockAlerts />}
+          {isManagement && <Notifications />}
           <UserMenu compact />
         </div>
       </div>
@@ -469,7 +541,7 @@ export default function Header() {
             {isFullscreen ? <FiMinimize size={17} /> : <FiMaximize size={17} />}
           </button>
 
-          {isManagement && <StockAlerts />}
+          {isManagement && <Notifications />}
 
           <span className="mx-1 h-7 w-px bg-[#EEF0F3]" />
 

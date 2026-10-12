@@ -7,8 +7,7 @@
 import { prisma } from "../db/prisma.js";
 import { Prisma } from "../../generated/prisma/client.js";
 import {
-  getPaymentChartCode,
-  paymentAccountIdFor,
+  RECORD_ONLY_CHART_CODE,
 } from "../utils/payment-accounts.js";
 import {
   availableBalance,
@@ -147,23 +146,14 @@ export async function paySalaries(data: PayInput, userId: number) {
     }
 
     // ---------------- Money source ----------------
-    const available = await availableBalance(tx, method, accountId).catch(
-      toServiceError,
-    );
-
-    if (total > available + 0.005) {
-      throw new ServiceError(
-        `Not enough money. Payroll total is ETB ${total.toFixed(2)} but only ETB ${available.toFixed(2)} is available.`,
-      );
-    }
+    // Checks the chosen account is valid. Record-only: the balance
+    // is not checked and the payment never reduces it.
+    await availableBalance(tx, method, accountId).catch(toServiceError);
 
     // ---------------- Post ----------------
     const salaryExpenseId = await chartAccountId(tx, SALARY_EXPENSE_CODE);
-    const moneyChartId = await chartAccountId(
-      tx,
-      await getPaymentChartCode(tx, method, accountId),
-    );
-    const paymentAccountId = paymentAccountIdFor(method, accountId);
+    const moneyChartId = await chartAccountId(tx, RECORD_ONLY_CHART_CODE);
+    const paymentAccountId = null;
     const label = periodLabel(period);
 
     const created = [];
