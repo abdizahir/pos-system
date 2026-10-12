@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx src/server.ts",
     "build": "prisma generate",
-    "start": "prisma migrate deploy && prisma db seed && tsx src/server.ts",
+    "start": "node scripts/check-env.mjs && prisma migrate deploy && prisma db seed && tsx src/server.ts",
     "typecheck": "tsc --noEmit -p .",
     "users": "tsx scripts/users.ts",
     "postinstall": "prisma generate"
