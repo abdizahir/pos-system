@@ -1,18 +1,16 @@
-import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
 import Button from "../../../components/Button";
 import DialogModal from "../../../components/DialogModal";
 import type { RootState } from "../../../store/store";
 import { closeProductForm, openProductForm } from "../../../store/posSlice";
 import CreateProduct from "../components/CreateProduct";
 import ProductTable from "../components/ProductTable";
+import { useOpenFromLink } from "../../../components/useOpenFromLink";
 
 
 
 export default function ProductsPage() {
   const dispatch = useDispatch();
-  const [searchParams, setSearchParams] = useSearchParams();
   const isProductFormModalOpen = useSelector(
     (state: RootState) => state.pos.isProductFormModalOpen,
   );
@@ -21,12 +19,7 @@ export default function ProductsPage() {
   );
 
   // Open the add form when linked with ?add=1 (e.g. dashboard quick action)
-  useEffect(() => {
-    if (searchParams.get("add") === "1") {
-      dispatch(openProductForm(null));
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams, dispatch]);
+  useOpenFromLink(() => dispatch(openProductForm(null)));
 
   return (
     <section id="proud-page" className="bg-[#F7F7F7] p-6">

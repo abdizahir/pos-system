@@ -5,9 +5,13 @@ import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../../store/store";
 import DialogModal from "../../../components/DialogModal";
 import CreatePurchase from "../components/CreatePurchase";
+import { useOpenFromLink } from "../../../components/useOpenFromLink";
 
 export default function PurchasePage() {
   const dispatch = useDispatch();
+
+  // Open the add form when linked with ?add=1 (e.g. dashboard quick action)
+  useOpenFromLink(() => dispatch(openCreatePurchase()));
     const isCreatePurchaseModalOpen = useSelector(
       (state: RootState) => state.pos.isCreatePurchaseModalOpen,
     );

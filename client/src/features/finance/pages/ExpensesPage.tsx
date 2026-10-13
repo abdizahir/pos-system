@@ -5,9 +5,13 @@ import DialogModal from "../../../components/DialogModal";
 import type { RootState } from "../../../store/store";
 import CreateExpenses from "../components/CreateExpenses";
 import ExpensesTable from "../components/ExpensesTable";
+import { useOpenFromLink } from "../../../components/useOpenFromLink";
 
 export default function ExpensesPage() {
   const dispatch = useDispatch();
+
+  // Open the add form when linked with ?add=1 (e.g. dashboard quick action)
+  useOpenFromLink(() => dispatch(openCreateExpenses()));
     const isCreateExpensesModalOpen = useSelector(
         (state: RootState) => state.pos.isCreateExpensesModalOpen,
       );

@@ -41,19 +41,21 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
+    function onPointerOutside(e: PointerEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerOutside);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerOutside);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
-
-  useEffect(() => {
-    setViewYear(value.getFullYear());
-    setViewMonth(value.getMonth());
-  }, [value]);
 
   function prevMonth() {
     if (viewMonth === 0) {
@@ -89,8 +91,18 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
     <div className="relative inline-block" ref={ref}>
       {/* Trigger button */}
       <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg border border-[#E6EAED] bg-white px-3 py-2 text-sm font-medium text-[#1B2850] shadow-sm transition-colors hover:border-[#FE9F43] hover:text-[#FE9F43]"
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => {
+          // Show the selected date's month each time the calendar opens
+          if (!open) {
+            setViewYear(value.getFullYear());
+            setViewMonth(value.getMonth());
+          }
+          setOpen(!open);
+        }}
+        className="flex items-center gap-2 rounded-lg border border-[#E6EAED] bg-white px-3 py-2 text-sm font-medium text-[#1B2850] shadow-sm transition-colors hover:border-[#FE9F43] hover:text-[#FE9F43] cursor-pointer"
       >
         <FiCalendar size={15} className="shrink-0" />
         {value.toLocaleDateString("en-US", {
@@ -102,12 +114,25 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
 
       {/* Dropdown calendar */}
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-[#E6EAED] bg-white p-4 shadow-lg">
+        <>
+        {/* Phones: dim the page behind the calendar; tap it to close */}
+        <div
+          className="fixed inset-0 z-40 bg-black/40 sm:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+        <div
+          role="dialog"
+          aria-label="Choose a date"
+          className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#E6EAED] bg-white p-5 shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-72 sm:max-w-none sm:translate-x-0 sm:translate-y-0 sm:rounded-xl sm:p-4 sm:shadow-lg"
+        >
           {/* Month / year nav */}
           <div className="mb-3 flex items-center justify-between">
             <button
+              type="button"
+              aria-label="Previous month"
               onClick={prevMonth}
-              className="rounded-lg p-1.5 text-[#646B72] transition-colors hover:bg-[#F7F7F7] hover:text-[#1B2850]"
+              className="rounded-lg p-2.5 sm:p-1.5 text-[#646B72] transition-colors hover:bg-[#F7F7F7] hover:text-[#1B2850] cursor-pointer"
             >
               <FiChevronLeft size={16} />
             </button>
@@ -115,9 +140,11 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
               {MONTH_NAMES[viewMonth]} {viewYear}
             </span>
             <button
+              type="button"
+              aria-label="Next month"
               onClick={nextMonth}
               disabled={!canNext}
-              className={`rounded-lg p-1.5 transition-colors ${
+              className={`rounded-lg p-2.5 sm:p-1.5 transition-colors ${
                 canNext
                   ? "text-[#646B72] hover:bg-[#F7F7F7] hover:text-[#1B2850]"
                   : "cursor-not-allowed text-[#D1D5DB]"
@@ -150,12 +177,13 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
               return (
                 <button
                   key={i}
+                  type="button"
                   disabled={disabled}
                   onClick={() => {
                     onChange(date);
                     setOpen(false);
                   }}
-                  className={`mx-auto flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors ${
+                  className={`mx-auto flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-sm transition-colors cursor-pointer disabled:cursor-not-allowed ${
                     selected
                       ? "bg-[#FE9F43] font-semibold text-white"
                       : isToday
@@ -174,16 +202,18 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
           {/* Today shortcut */}
           <div className="mt-3 border-t border-[#E6EAED] pt-2.5 text-center">
             <button
+              type="button"
               onClick={() => {
                 onChange(new Date(today));
                 setOpen(false);
               }}
-              className="text-xs font-semibold text-[#FE9F43] hover:underline"
+              className="px-3 py-1.5 text-sm sm:text-xs font-semibold text-[#FE9F43] hover:underline cursor-pointer"
             >
               Today
             </button>
           </div>
         </div>
+        </>
       )}
     </div>
   );

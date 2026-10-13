@@ -93,8 +93,8 @@ const SALE_STATUS_STYLE: Record<string, string> = {
 const QUICK_ACTIONS = [
   { label: "New Sale", to: "/pos", icon: FiShoppingCart, primary: true },
   { label: "Add Product", to: "/products?add=1", icon: FiPackage },
-  { label: "Purchase", to: "/purchase", icon: FiShoppingBag },
-  { label: "Expense", to: "/expenses", icon: FiFileText },
+  { label: "Add Purchase", to: "/purchase?add=1", icon: FiShoppingBag },
+  { label: "Add Expense", to: "/expenses?add=1", icon: FiFileText },
 ];
 
 const EMPTY_CHANNELS: DashboardChannel[] = (
