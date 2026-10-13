@@ -487,14 +487,16 @@ export default function PosPage() {
     "w-full rounded-xl border border-[#E6EAED] bg-white px-3 py-2.5 text-sm text-text-two outline-none transition placeholder:text-[#A0A7AE] focus:border-[#FE9F43] focus:ring-4 focus:ring-[#FE9F43]/15";
 
   return (
-    <section className="min-h-full bg-[#F4F6F8] p-4 lg:p-6">
+    // Layout follows the space the POS gets (container queries), not the
+    // browser window, so it looks the same in every browser and zoom level
+    <section className="@container min-h-full bg-[#F4F6F8] p-4 lg:p-6">
       <form
         autoComplete="off"
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_420px]"
+        className="grid grid-cols-1 gap-4 lg:gap-6 @3xl:grid-cols-[minmax(0,1fr)_360px] @5xl:grid-cols-[minmax(0,1fr)_420px]"
       >
         {/* ================= PRODUCTS ================= */}
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="@container/products flex min-w-0 flex-col gap-4">
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold text-text-two">New Sale</h1>
@@ -578,7 +580,7 @@ export default function PosPage() {
           </div>
 
           {productsLoading ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 @md/products:grid-cols-3 @3xl/products:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
@@ -597,7 +599,7 @@ export default function PosPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 @md/products:grid-cols-3 @3xl/products:grid-cols-4">
               {filteredProducts.map((product) => {
                 const availableStock = getAvailableStock(product);
                 const outOfStock = availableStock <= 0;
@@ -663,7 +665,7 @@ export default function PosPage() {
         </div>
 
         {/* ================= CART / CHECKOUT ================= */}
-        <aside className="flex flex-col rounded-2xl border border-[#E6EAED] bg-white shadow-sm xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)]">
+        <aside className="flex flex-col rounded-2xl border border-[#E6EAED] bg-white shadow-sm @3xl:sticky @3xl:top-6 @3xl:max-h-[calc(100vh-3rem)]">
           <div className="flex items-center justify-between border-b border-[#E6EAED] px-5 py-4">
             <div className="flex items-center gap-2">
               <FiShoppingCart className="text-[#FE9F43]" size={18} />
