@@ -42,6 +42,12 @@ function money(value: number) {
   })}`;
 }
 
+// Font size that fits the whole text on one line in its card: about
+// 0.6em per character, never above 26px or below 15px
+function fitFontSize(text: string) {
+  return `clamp(15px, ${(150 / Math.max(text.length, 1)).toFixed(2)}cqi, 26px)`;
+}
+
 function percent(part: number, whole: number) {
   if (!whole) return "—";
   return `${((part / whole) * 100).toFixed(1)}%`;
@@ -182,7 +188,7 @@ function KpiCard({
   return (
     <Link
       to={to}
-      className={`group relative block overflow-hidden rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+      className={`@container group relative block overflow-hidden rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
         highlight
           ? negative
             ? "border-transparent bg-linear-to-br from-[#E53E3E] to-[#C53030] text-white"
@@ -207,7 +213,10 @@ function KpiCard({
         <Skeleton className="mt-3 h-8 w-36" />
       ) : (
         <p
-          className={`mt-2 truncate text-[26px] font-bold tabular-nums ${
+          // Shrinks long amounts to fit the card instead of cutting
+          // them off with "..."
+          style={{ fontSize: fitFontSize(money(value)) }}
+          className={`mt-2 whitespace-nowrap font-bold leading-tight tabular-nums ${
             highlight
               ? "text-white"
               : negative
