@@ -307,7 +307,9 @@ export default function CloseOutPage() {
   const netProfit = data?.profit.netProfit ?? 0;
 
   return (
-    <section id="close-out-page" className="bg-[#F7F7F7] p-6">
+    <section id="close-out-page" className="@container bg-[#F7F7F7] p-6">
+      {/* @container: columns follow the page's own width, not the
+          window's, so Edge and Chrome lay it out the same */}
       <ReportHeader
         title="Close-Out Report"
         subtitle="End of day, week, month and year totals, or any date range"
@@ -400,7 +402,7 @@ export default function CloseOutPage() {
         <>
           {/* ================= KPI CARDS ================= */}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 @lg:grid-cols-2 @4xl:grid-cols-4 gap-4 mb-6">
             <KpiCard
               label="Net Sales"
               value={etb(data.netSales)}
@@ -435,7 +437,7 @@ export default function CloseOutPage() {
 
           {/* ================= SALES / PAYMENTS / PROFIT ================= */}
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6 items-start">
+          <div className="grid grid-cols-1 @4xl:grid-cols-3 gap-6 mb-6 items-start">
             <ReportCard title="Sales Summary">
               <AmountTable
                 head={["Item", "Amount (ETB)"]}
@@ -473,7 +475,7 @@ export default function CloseOutPage() {
 
           {/* ================= EXPENSES / PURCHASES / VAT ================= */}
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6 items-start">
+          <div className="grid grid-cols-1 @4xl:grid-cols-3 gap-6 mb-6 items-start">
             <ReportCard title="Expenses" subtitle={`${data.expenses.count} recorded`}>
               <AmountTable
                 head={["Category", "Amount (ETB)"]}
