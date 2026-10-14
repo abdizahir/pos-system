@@ -1,6 +1,7 @@
 // client/src/layouts/DashboardLayout.tsx
 
-import { Outlet } from "react-router-dom";
+import { useLayoutEffect, useRef } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 import Header from "../components/Header";
@@ -15,6 +16,16 @@ export default function DashboardLayout() {
   const isOpen = useSelector(
     (state: RootState) => state.pos.isSidebarOpen,
   );
+
+  // Pages scroll inside <main>, not the window, so the browser never
+  // resets it. Start each new page at the top (filters and ?add=1 on
+  // the same page keep their place).
+  const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [pathname]);
 
   return (
     <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
@@ -36,7 +47,7 @@ export default function DashboardLayout() {
           <Header />
         </div>
 
-        <main className="flex-1 min-h-0 overflow-y-auto print:overflow-visible">
+        <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto print:overflow-visible">
           <Outlet />
           <div className="print:hidden">
             <Footer />
