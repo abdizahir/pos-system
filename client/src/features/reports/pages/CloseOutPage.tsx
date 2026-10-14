@@ -8,8 +8,6 @@
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  FiChevronLeft,
-  FiChevronRight,
   FiDollarSign,
   FiShoppingBag,
   FiShoppingCart,
@@ -28,7 +26,6 @@ import {
 } from "../components/ReportParts";
 import {
   REPORT_CARD,
-  REPORT_INPUT,
   downloadCsv,
   downloadPdf,
   etb,
@@ -57,18 +54,6 @@ const METHOD_LABELS: Record<string, string> = {
   NONE: "No refund",
 };
 
-function parseDay(value: string) {
-  return new Date(`${value}T00:00:00`);
-}
-
-function shiftDate(value: string, period: Exclude<CloseOutPeriod, "custom">, step: number) {
-  const date = parseDay(value);
-  if (period === "day") date.setDate(date.getDate() + step);
-  if (period === "week") date.setDate(date.getDate() + step * 7);
-  if (period === "month") date.setMonth(date.getMonth() + step, 1);
-  if (period === "year") date.setFullYear(date.getFullYear() + step, 0, 1);
-  return toDateInput(date);
-}
 
 function periodTitle(period: CloseOutPeriod, fromIso: string, toIso: string) {
   const from = new Date(fromIso);
@@ -113,13 +98,12 @@ export default function CloseOutPage() {
   const appliedFrom = searchParams.get("from") || `${appliedDate.slice(0, 8)}01`;
   const appliedTo = searchParams.get("to") || appliedDate;
 
-  const [date, setDate] = useState(appliedDate);
   const [fromDate, setFromDate] = useState(appliedFrom);
   const [toDate, setToDate] = useState(appliedTo);
   const [rangeError, setRangeError] = useState("");
 
+  // Day / week / month / year show the period that contains today
   const apply = (nextPeriod: CloseOutPeriod, nextDate: string) => {
-    setDate(nextDate);
     setRangeError("");
     if (nextPeriod === "custom") {
       setFromDate(appliedFrom);
@@ -136,10 +120,7 @@ export default function CloseOutPage() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (period !== "custom") {
-      if (date) apply(period, date);
-      return;
-    }
+    if (period !== "custom") return;
 
     if (!fromDate || !toDate) {
       setRangeError("Choose both a start and an end date.");
@@ -159,7 +140,6 @@ export default function CloseOutPage() {
   const activePeriod = PERIODS.find((p) => p.key === period)!;
   const reportTitle =
     period === "custom" ? "Custom Range Report" : `${activePeriod.label} Report`;
-  const nextDate = period === "custom" ? appliedDate : shiftDate(appliedDate, period, 1);
 
   // --------------------------------------------------
   // Data
@@ -357,7 +337,7 @@ export default function CloseOutPage() {
                 key={p.key}
                 type="button"
                 title={p.label}
-                onClick={() => apply(p.key, appliedDate)}
+                onClick={() => apply(p.key, today)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
                   period === p.key
                     ? "bg-[#FE9F43] text-white"
@@ -408,53 +388,6 @@ export default function CloseOutPage() {
           <p className="px-5 pb-3 text-right text-sm text-red-500">{rangeError}</p>
         )}
 
-        {period !== "custom" && (
-          <>
-        <hr className="border-t border-[#E6EAED]" />
-
-        <div className="px-5 py-4 flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1.5 w-full sm:w-72">
-            <label htmlFor="close-out-date" className="text-sm font-medium text-text-two">
-              Date
-            </label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                aria-label="Previous period"
-                onClick={() => apply(period, shiftDate(appliedDate, period, -1))}
-                className="shrink-0 w-9.5 h-9.5 flex items-center justify-center rounded-lg border border-[#E6EAED] bg-white text-[#646B72] hover:border-[#FE9F43] hover:text-[#FE9F43] cursor-pointer"
-              >
-                <FiChevronLeft size={16} />
-              </button>
-              <input
-                id="close-out-date"
-                type="date"
-                value={date}
-                max={today}
-                onChange={(e) => setDate(e.target.value)}
-                className={REPORT_INPUT}
-              />
-              <button
-                type="button"
-                aria-label="Next period"
-                onClick={() => apply(period, nextDate)}
-                disabled={nextDate > today}
-                className="shrink-0 w-9.5 h-9.5 flex items-center justify-center rounded-lg border border-[#E6EAED] bg-white text-[#646B72] hover:border-[#FE9F43] hover:text-[#FE9F43] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <FiChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="h-9.5 px-5 rounded-lg bg-[#FE9F43] text-white text-14 font-medium cursor-pointer transition-opacity hover:opacity-90"
-          >
-            Submit
-          </button>
-        </div>
-          </>
-        )}
       </form>
 
       <ErrorBanner message={isError ? "Failed to load the close-out report." : ""} />
