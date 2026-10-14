@@ -129,10 +129,45 @@ export const createProductSchema = z.object({
     .number()
     .min(0)
     .max(100),
+
+  // Create only: the first stock the shop already has on hand
+  purchasePrice: z
+    .number()
+    .nonnegative("Purchase price cannot be negative")
+    .optional(),
+
+  initialQuantity: z
+    .number()
+    .int("Initial quantity must be a whole number")
+    .min(0, "Initial quantity cannot be negative")
+    .optional(),
 });
 
-export const updateProductSchema =
-  createProductSchema.partial();
+export const updateProductSchema = createProductSchema
+  .omit({ purchasePrice: true, initialQuantity: true })
+  .partial();
+
+// One row of a product import file. Category and unit are names.
+export const importProductRowSchema = z.object({
+  // Line number in the file, echoed back in the skipped list
+  row: z.number().int().positive().optional(),
+  productName: z.string().trim().min(1, "Product name is required"),
+  barcode: z.string().trim().optional(),
+  category: z.string().trim().min(1, "Category is required"),
+  unit: z.string().trim().min(1, "Unit is required"),
+  purchasePrice: z.number().nonnegative("Purchase price cannot be negative").optional(),
+  sellingPrice: z.number().nonnegative("Selling price cannot be negative").optional(),
+  quantity: z.number().int("Quantity must be a whole number").min(0, "Quantity cannot be negative").optional(),
+  lowStockLimit: z.number().int("Low stock limit must be a whole number").min(0, "Low stock limit cannot be negative").optional(),
+  vat: z.number().min(0, "VAT must be between 0 and 100").max(100, "VAT must be between 0 and 100").optional(),
+});
+
+export const importProductsSchema = z.object({
+  rows: z
+    .array(z.unknown())
+    .min(1, "The file has no products")
+    .max(2000, "Import at most 2000 products at a time"),
+});
 
 // ============================================================
 // SALE

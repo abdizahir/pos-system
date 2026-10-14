@@ -57,9 +57,34 @@ export async function createProduct(
 ) {
   try {
     const product =
-      await productService.createProduct(req.body);
+      await productService.createProduct(
+        req.body,
+        req.user?.id ?? null,
+      );
 
     return res.status(201).json(product);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ============================================================
+// IMPORT PRODUCTS
+// ============================================================
+
+export async function importProducts(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const result =
+      await productService.importProducts(
+        req.body,
+        req.user?.id ?? null,
+      );
+
+    return res.status(200).json(result);
   } catch (error) {
     next(error);
   }

@@ -25,6 +25,9 @@ type ProductFormData = {
   unitId: number;
   lowStockLimit: number;
   vat: number;
+  sellingPrice?: number;
+  purchasePrice?: number;
+  initialQuantity?: number;
 };
 
 type ProductFormProps = {
@@ -75,6 +78,12 @@ export default function ProductForm({
     useState<SelectOption | null>(null);
 
   const [lowStockLimit, setLowStockLimit] = useState("");
+
+  const [sellingPrice, setSellingPrice] = useState("");
+
+  // Create only: stock the shop already has when adding the product
+  const [purchasePrice, setPurchasePrice] = useState("");
+  const [initialQuantity, setInitialQuantity] = useState("");
 
   const [vat, setVat] =
     useState<SelectOption | null>(null);
@@ -133,6 +142,10 @@ export default function ProductForm({
   const lowStockLimitValue =
     lowStockLimit ||
     (product ? String(product.lowStockLimit) : "");
+
+  const sellingPriceValue =
+    sellingPrice ||
+    (product ? String(Number(product.sellingPrice ?? 0)) : "");
 
   const selectedCategory =
     category ??
@@ -199,6 +212,33 @@ export default function ProductForm({
       return;
     }
 
+    const sellingPriceNumber = Number(sellingPriceValue || 0);
+
+    if (!Number.isFinite(sellingPriceNumber) || sellingPriceNumber < 0) {
+      alert("Please enter a valid selling price.");
+      return;
+    }
+
+    const quantityNumber = Number(initialQuantity || 0);
+    const purchasePriceNumber = Number(purchasePrice || 0);
+
+    if (!isEditing) {
+      if (!Number.isInteger(quantityNumber) || quantityNumber < 0) {
+        alert("Initial quantity must be a whole number.");
+        return;
+      }
+
+      if (!Number.isFinite(purchasePriceNumber) || purchasePriceNumber < 0) {
+        alert("Please enter a valid purchase price.");
+        return;
+      }
+
+      if (quantityNumber > 0 && purchasePrice.trim() === "") {
+        alert("Enter the purchase price for the initial quantity.");
+        return;
+      }
+    }
+
     const payload: ProductFormData = {
       productName: trimmedProductName,
 
@@ -216,6 +256,15 @@ export default function ProductForm({
 
       vat:
         selectedVat?.value ?? 0,
+
+      sellingPrice: sellingPriceNumber,
+
+      ...(isEditing
+        ? {}
+        : {
+            purchasePrice: purchasePriceNumber,
+            initialQuantity: quantityNumber,
+          }),
     };
 
     try {
@@ -231,7 +280,9 @@ export default function ProductForm({
       dispatch(closeProductForm());
     } catch (error) {
       console.error("Product save error:", error);
-      alert("Failed to save product.");
+      const message = (error as { data?: { message?: string } })?.data
+        ?.message;
+      alert(message || "Failed to save product.");
     }
   };
 
@@ -426,8 +477,87 @@ export default function ProductForm({
 
         </div>
 
-        {/* VAT */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+        {/* Add: purchase price, selling price, initial quantity, VAT
+            Edit: selling price, VAT (stock changes go through
+            purchases or Adjust Stock) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-4 mb-4">
+
+          {!isEditing && (
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="purchasePrice"
+                className="text-sm font-medium"
+              >
+                Purchase Price
+              </label>
+
+              <input
+                id="purchasePrice"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={purchasePrice}
+                onChange={(e) =>
+                  setPurchasePrice(e.target.value)
+                }
+                placeholder="0.00"
+                className="border border-gray-300 rounded-md px-3 py-2 outline-0"
+              />
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="sellingPrice"
+              className="text-sm font-medium"
+            >
+              Selling Price
+            </label>
+
+            <input
+              id="sellingPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={sellingPriceValue}
+              onChange={(e) =>
+                setSellingPrice(e.target.value)
+              }
+              placeholder="0.00"
+              className="border border-gray-300 rounded-md px-3 py-2 outline-0"
+            />
+          </div>
+
+          {!isEditing && (
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="initialQuantity"
+                className="text-sm font-medium"
+              >
+                Initial Quantity
+              </label>
+
+              <input
+                id="initialQuantity"
+                type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
+                value={initialQuantity}
+                onChange={(e) =>
+                  setInitialQuantity(e.target.value)
+                }
+                placeholder="0"
+                className="border border-gray-300 rounded-md px-3 py-2 outline-0"
+              />
+
+              <p className="text-xs text-[#646B72]">
+                Stock you already have. Leave empty for none.
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <label

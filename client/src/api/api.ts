@@ -177,10 +177,36 @@ type CreateProductInput = {
   sellingPrice?: number;
   lowStockLimit: number;
   vat: number;
+
+  // Create only: stock already on hand, booked as opening stock
+  purchasePrice?: number;
+  initialQuantity?: number;
 };
 
-type UpdateProductInput = Partial<CreateProductInput> & {
+type UpdateProductInput = Partial<
+  Omit<CreateProductInput, "purchasePrice" | "initialQuantity">
+> & {
   id: number;
+};
+
+// One product row from an import file; category and unit are names
+export type ImportProductRow = {
+  // Line number in the file, so skipped rows can be found
+  row?: number;
+  productName: string;
+  barcode?: string;
+  category: string;
+  unit: string;
+  purchasePrice?: number;
+  sellingPrice?: number;
+  quantity?: number;
+  lowStockLimit?: number;
+  vat?: number;
+};
+
+export type ImportProductsResult = {
+  created: number;
+  skipped: { row: number; name: string; reason: string }[];
 };
 
 // ============================================================
@@ -1253,11 +1279,35 @@ export const api = createApi({
         body,
       }),
 
+      // An initial quantity also adds stock and a journal entry
       invalidatesTags: [
         {
           type: "Product",
           id: "LIST",
         },
+        { type: "Stock", id: "LIST" },
+        "ProfitLoss",
+        { type: "JournalEntry", id: "LIST" },
+      ],
+    }),
+
+    importProducts: builder.mutation<
+      ImportProductsResult,
+      { rows: ImportProductRow[] }
+    >({
+      query: (body) => ({
+        url: "products/import",
+        method: "POST",
+        body,
+      }),
+
+      invalidatesTags: [
+        { type: "Product", id: "LIST" },
+        { type: "Stock", id: "LIST" },
+        "Category",
+        "Unit",
+        "ProfitLoss",
+        { type: "JournalEntry", id: "LIST" },
       ],
     }),
 
@@ -2496,6 +2546,7 @@ export const {
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
+  useImportProductsMutation,
 
   // Categories
   useGetCategoriesQuery,

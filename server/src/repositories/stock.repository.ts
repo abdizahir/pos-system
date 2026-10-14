@@ -422,16 +422,28 @@ async function updateProductStockCache(
 // CREATE OPENING STOCK
 // ============================================================
 
+type OpeningStockItem = {
+  productId: number;
+  quantity: number;
+  purchasePrice: number;
+  expiryDate?: Date | null;
+};
+
 export async function createOpeningStock(
-  items: {
-    productId: number;
-    quantity: number;
-    purchasePrice: number;
-    expiryDate?: Date | null;
-  }[],
+  items: OpeningStockItem[],
   userId?: number | null,
 ) {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction((tx) => addOpeningStock(tx, items, userId));
+}
+
+// Same as createOpeningStock, inside a transaction the caller already
+// has open (e.g. creating a product together with its first stock).
+export async function addOpeningStock(
+  tx: Prisma.TransactionClient,
+  items: OpeningStockItem[],
+  userId?: number | null,
+) {
+  {
     const createdBatches = [];
 
     // ----------------------------------------------------------
@@ -607,5 +619,5 @@ export async function createOpeningStock(
 
       journalEntry,
     };
-  });
+  }
 }
