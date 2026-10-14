@@ -1056,12 +1056,11 @@ export default function PosPage() {
             <button
               type="submit"
               disabled={isSubmitting || cart.length === 0}
-              className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-[#FE9F43] px-5 py-3.5 font-semibold text-white shadow-lg shadow-[#FE9F43]/30 transition hover:bg-[#F28F2F] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+              className="flex w-full cursor-pointer items-center justify-center rounded-xl bg-[#FE9F43] px-5 py-3.5 font-semibold text-white shadow-lg shadow-[#FE9F43]/30 transition hover:bg-[#F28F2F] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
             >
               <span>
                 {isSubmitting ? "Processing..." : "Complete Sale"}
               </span>
-              <span className="text-lg">ETB {money(total)}</span>
             </button>
           </div>
         </aside>
