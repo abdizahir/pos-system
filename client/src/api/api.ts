@@ -250,7 +250,7 @@ type Purchase = {
   id: number;
   reference: string;
 
-  supplierId: number;
+  supplierId: number | null;
   userId: number;
 
   subtotal: number | string;
@@ -310,7 +310,8 @@ type CreatePurchaseItemInput = {
 };
 
 type CreatePurchaseInput = {
-  supplierId: number;
+  // Optional: null records the purchase without a supplier
+  supplierId?: number | null;
 
   discount?: number;
   tax?: number;
@@ -327,7 +328,7 @@ type CreatePurchaseInput = {
 type UpdatePurchaseInput = {
   id: number;
 
-  supplierId?: number;
+  supplierId?: number | null;
 
   discount?: number;
   tax?: number;

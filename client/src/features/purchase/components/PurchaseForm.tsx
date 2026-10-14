@@ -215,13 +215,6 @@ export default function PurchaseForm({
     // Validation
     // --------------------------------------------------
 
-    if (!supplierId) {
-      setPurchaseError(
-        "Supplier is required.",
-      );
-      return;
-    }
-
     if (!productId) {
       setPurchaseError(
         "Product is required.",
@@ -314,7 +307,8 @@ export default function PurchaseForm({
 
       if (mode === "create") {
         await createPurchase({
-          supplierId: Number(supplierId),
+          // Optional: no supplier picked records it without one
+          supplierId: supplierId ? Number(supplierId) : null,
           // Discount / tax are on the item, so not repeated here
           discount: 0,
           tax: 0,
@@ -343,7 +337,7 @@ export default function PurchaseForm({
 
       await updatePurchase({
         id: purchaseId,
-        supplierId: Number(supplierId),
+        supplierId: supplierId ? Number(supplierId) : null,
         discount: 0,
         tax: 0,
         paidAmount,
@@ -491,8 +485,8 @@ export default function PurchaseForm({
             className="text-sm font-medium mb-2"
           >
             Supplier{" "}
-            <span className="text-red-500">
-              *
+            <span className="text-[#8A94A3] font-normal">
+              (optional)
             </span>
           </label>
 
@@ -507,11 +501,10 @@ export default function PurchaseForm({
                 : ""
             }
             className="w-full border border-gray-300 rounded-md px-3 py-2 outline-none focus:border-[#FE9F43] bg-white disabled:bg-gray-100"
-            required
             disabled={isLoading}
           >
             <option value="">
-              Select supplier
+              No supplier
             </option>
 
             {suppliers.map(

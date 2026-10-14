@@ -17,7 +17,8 @@ type PurchaseItemInput = {
 };
 
 type CreatePurchaseInput = {
-  supplierId: number;
+  // Optional: a purchase can be recorded without a supplier
+  supplierId?: number | null;
   userId: number;
   discount?: number;
   tax?: number;
@@ -33,7 +34,7 @@ type CreatePurchaseInput = {
 };
 
 type UpdatePurchaseInput = {
-  supplierId?: number;
+  supplierId?: number | null;
   discount?: number;
   tax?: number;
   paidAmount?: number;
@@ -668,12 +669,6 @@ export const purchaseService = {
       );
     }
 
-    if (!data.supplierId) {
-      throw new Error(
-        "Supplier is required",
-      );
-    }
-
     if (!data.userId) {
       throw new Error(
         "User is required",
@@ -684,17 +679,21 @@ export const purchaseService = {
     // SUPPLIER
     // --------------------------------------------------------
 
-    const supplier =
-      await prisma.supplier.findUnique({
-        where: {
-          id: data.supplierId,
-        },
-      });
+    const supplierId = data.supplierId ?? null;
 
-    if (!supplier) {
-      throw new Error(
-        "Supplier not found",
-      );
+    if (supplierId !== null) {
+      const supplier =
+        await prisma.supplier.findUnique({
+          where: {
+            id: supplierId,
+          },
+        });
+
+      if (!supplier) {
+        throw new Error(
+          "Supplier not found",
+        );
+      }
     }
 
     // --------------------------------------------------------
@@ -1022,11 +1021,13 @@ export const purchaseService = {
             data: {
               reference,
 
-              supplier: {
-                connect: {
-                  id: data.supplierId,
+              ...(supplierId !== null && {
+                supplier: {
+                  connect: {
+                    id: supplierId,
+                  },
                 },
-              },
+              }),
 
               user: {
                 connect: {
@@ -1116,11 +1117,13 @@ export const purchaseService = {
                   },
                 },
 
-                supplier: {
-                  connect: {
-                    id: data.supplierId,
+                ...(supplierId !== null && {
+                  supplier: {
+                    connect: {
+                      id: supplierId,
+                    },
                   },
-                },
+                }),
 
                 purchase: {
                   connect: {
@@ -1348,7 +1351,7 @@ export const purchaseService = {
 
     if (data.items === undefined) {
       const updateData: {
-        supplierId?: number;
+        supplierId?: number | null;
         discount?: number;
         tax?: number;
         paidAmount?: number;
@@ -1358,7 +1361,9 @@ export const purchaseService = {
         notes?: string;
       } = {};
 
-      if (
+      if (data.supplierId === null) {
+        updateData.supplierId = null;
+      } else if (
         data.supplierId !==
         undefined
       ) {
@@ -2041,6 +2046,11 @@ export const purchaseService = {
         // AFFECTED PRODUCTS
         // ------------------------------------------------------
 
+        const nextSupplierId =
+          data.supplierId === undefined
+            ? existingPurchase.supplierId
+            : data.supplierId;
+
         const affectedProductIds: number[] =
           [
             ...existingPurchase.items.map(
@@ -2072,13 +2082,15 @@ export const purchaseService = {
                   },
                 },
 
-                supplier: {
-                  connect: {
-                    id:
-                      data.supplierId ??
-                      existingPurchase.supplierId,
+                // The supplier that was sent, otherwise the current
+                // one; a purchase may have none
+                ...(nextSupplierId !== null && {
+                  supplier: {
+                    connect: {
+                      id: nextSupplierId,
+                    },
                   },
-                },
+                }),
 
                 purchase: {
                   connect: {

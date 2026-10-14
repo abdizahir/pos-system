@@ -94,8 +94,8 @@ const PRESETS = [
   { key: "year", label: "This Year" },
 ];
 
-const INPUT =
-  "w-full py-2 px-3 rounded-lg border border-[#E6EAED] bg-white text-14 text-text-two outline-none focus:border-[#FE9F43]";
+const DATE_INPUT =
+  "h-8.5 rounded-lg border border-[#E6EAED] bg-white px-2.5 text-sm text-text-two outline-0 focus:border-[#FE9F43]";
 
 const CARD = "shadow bg-white rounded-lg border border-[#E6EAED]";
 
@@ -185,16 +185,26 @@ export default function ProfitLossPage() {
   const [to, setTo] = useState(appliedTo);
   const [formError, setFormError] = useState("");
 
-  const activePreset = PRESETS.find((preset) => {
+  const matchingPreset = PRESETS.find((preset) => {
     const range = presetRange(preset.key);
     return range.from === appliedFrom && range.to === appliedTo;
   });
 
-  const apply = (nextFrom: string, nextTo: string) => {
+  // Custom shows the From / To dates; it is also on for any range
+  // that isn't one of the quick buttons
+  const isCustom = searchParams.get("custom") === "1" || !matchingPreset;
+  const activePreset = isCustom ? undefined : matchingPreset;
+
+  const apply = (nextFrom: string, nextTo: string, custom = false) => {
     setFrom(nextFrom);
     setTo(nextTo);
     setFormError("");
-    setSearchParams({ from: nextFrom, to: nextTo }, { replace: true });
+    setSearchParams(
+      custom
+        ? { from: nextFrom, to: nextTo, custom: "1" }
+        : { from: nextFrom, to: nextTo },
+      { replace: true },
+    );
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -207,7 +217,7 @@ export default function ProfitLossPage() {
       setFormError("Start date must be before end date.");
       return;
     }
-    apply(from, to);
+    apply(from, to, true);
   };
 
   // --------------------------------------------------
@@ -473,46 +483,53 @@ export default function ProfitLossPage() {
                 {preset.label}
               </button>
             ))}
-          </div>
-        </div>
-        <hr className="border-t border-[#E6EAED]" />
 
-        <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="pl-from" className="text-sm font-medium text-text-two">
-              Start Date
-            </label>
-            <input
-              id="pl-from"
-              type="date"
-              value={from}
-              max={to || today}
-              onChange={(e) => setFrom(e.target.value)}
-              className={INPUT}
-            />
-          </div>
+            <button
+              type="button"
+              onClick={() => apply(appliedFrom, appliedTo, true)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                isCustom
+                  ? "bg-[#FE9F43] text-white"
+                  : "border border-[#E6EAED] text-[#646B72] hover:border-[#FE9F43] hover:text-[#FE9F43]"
+              }`}
+            >
+              Custom
+            </button>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="pl-to" className="text-sm font-medium text-text-two">
-              End Date
-            </label>
-            <input
-              id="pl-to"
-              type="date"
-              value={to}
-              min={from || undefined}
-              max={today}
-              onChange={(e) => setTo(e.target.value)}
-              className={INPUT}
-            />
+            {isCustom && (
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="pl-from" className="text-sm font-medium text-text-two">
+                  From
+                </label>
+                <input
+                  id="pl-from"
+                  type="date"
+                  value={from}
+                  max={to || today}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className={DATE_INPUT}
+                />
+                <label htmlFor="pl-to" className="text-sm font-medium text-text-two">
+                  To
+                </label>
+                <input
+                  id="pl-to"
+                  type="date"
+                  value={to}
+                  min={from || undefined}
+                  max={today}
+                  onChange={(e) => setTo(e.target.value)}
+                  className={DATE_INPUT}
+                />
+                <button
+                  type="submit"
+                  className="h-8.5 px-4 rounded-lg bg-[#FE9F43] text-white text-sm font-medium cursor-pointer transition-opacity hover:opacity-90"
+                >
+                  Submit
+                </button>
+              </div>
+            )}
           </div>
-
-          <button
-            type="submit"
-            className="h-9.5 px-5 rounded-lg bg-[#FE9F43] text-white text-14 font-medium cursor-pointer transition-opacity hover:opacity-90"
-          >
-            Submit
-          </button>
         </div>
 
         {formError && (

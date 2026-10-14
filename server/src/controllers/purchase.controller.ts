@@ -104,13 +104,6 @@ export const createPurchaseController = async (
       items,
     } = req.body;
 
-    if (!supplierId) {
-      return res.status(400).json({
-        success: false,
-        message: "Supplier is required",
-      });
-    }
-
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
@@ -177,7 +170,8 @@ export const createPurchaseController = async (
     }
 
     const purchase = await purchaseService.createPurchase({
-      supplierId: Number(supplierId),
+      // Optional: empty means no supplier
+      supplierId: supplierId ? Number(supplierId) : null,
       userId,
 
       ...(discount !== undefined && {
@@ -363,10 +357,10 @@ export const updatePurchaseController = async (
     }
 
     const purchase = await purchaseService.updatePurchase(id, {
-      ...(supplierId !== undefined &&
-        supplierId !== null && {
-          supplierId: Number(supplierId),
-        }),
+      // null / "" clears the supplier
+      ...(supplierId !== undefined && {
+        supplierId: supplierId ? Number(supplierId) : null,
+      }),
 
       ...(discount !== undefined &&
         discount !== null && {

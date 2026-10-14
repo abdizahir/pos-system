@@ -282,7 +282,8 @@ model Supplier {
 model Purchase {
   id         Int    @id @default(autoincrement())
   reference  String @unique
-  supplierId Int    @map("supplier_id")
+  // Optional: a purchase can be recorded without a supplier
+  supplierId Int?   @map("supplier_id")
   userId     Int    @map("user_id")
 
   subtotal Decimal @db.Decimal(10, 2)
@@ -304,9 +305,9 @@ model Purchase {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  supplier Supplier @relation(fields: [supplierId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
-  account  Account? @relation(fields: [accountId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  user     User      @relation(fields: [userId], references: [id])
+  account  Account?  @relation(fields: [accountId], references: [id])
 
   items        PurchaseItem[]
   stockBatches StockBatch[]
