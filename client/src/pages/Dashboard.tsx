@@ -425,7 +425,7 @@ function ShortProfitLoss({
           ))}
         </div>
       ) : (
-        <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid gap-6 p-5 @2xl:grid-cols-[minmax(0,1fr)_300px]">
           <div>
             <PlRow label="Revenue" value={revenue} />
             <PlRow label="Cost of goods sold" value={cogs} sign="-" />
@@ -569,7 +569,9 @@ export default function Dashboard() {
 
   return (
     <section className="min-h-full bg-[#F4F6F8] p-4 sm:p-6">
-      <div className="mx-auto max-w-375 space-y-6">
+      {/* Columns follow the dashboard's own width, not the window's, so
+          Edge and Chrome lay it out the same at any zoom or sidebar */}
+      <div className="@container mx-auto max-w-375 space-y-6">
         {/* ---------------- Header ---------------- */}
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -631,7 +633,7 @@ export default function Dashboard() {
         )}
 
         {/* ---------------- KPIs ---------------- */}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 @lg:grid-cols-2 @4xl:grid-cols-4">
           <KpiCard
             title="Revenue"
             value={day?.revenue}
@@ -699,7 +701,7 @@ export default function Dashboard() {
               for its statement
             </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 @lg:grid-cols-2 @4xl:grid-cols-4">
             {channels.map((channel) => (
               <ChannelCard
                 key={channel.key}
@@ -715,9 +717,9 @@ export default function Dashboard() {
         {/* ---------------- VAT ---------------- */}
         <Link
           to={`/vat?from=${date}&to=${date}`}
-          className="group flex flex-col gap-4 rounded-2xl border border-[#E6EAED] bg-white p-5 shadow-sm transition hover:border-[#FE9F43]/60 hover:shadow-md lg:flex-row lg:items-center"
+          className="group flex flex-col gap-4 rounded-2xl border border-[#E6EAED] bg-white p-5 shadow-sm transition hover:border-[#FE9F43]/60 hover:shadow-md @2xl:flex-row @2xl:items-center"
         >
-          <div className="flex items-center gap-3 lg:w-56">
+          <div className="flex items-center gap-3 @2xl:w-56">
             <span className="rounded-xl bg-[#FFF0E1] p-2.5 text-[#F27D16]">
               <FiPercent size={18} />
             </span>
@@ -764,13 +766,13 @@ export default function Dashboard() {
 
           <FiArrowRight
             size={16}
-            className="hidden text-[#C2C8CF] transition group-hover:translate-x-0.5 group-hover:text-[#FE9F43] lg:block"
+            className="hidden text-[#C2C8CF] transition group-hover:translate-x-0.5 group-hover:text-[#FE9F43] @2xl:block"
           />
         </Link>
 
         {/* ---------------- Chart + recent sales ---------------- */}
-        <div className="grid gap-4 xl:grid-cols-3">
-          <div className="min-w-0 xl:col-span-2">
+        <div className="grid gap-4 @4xl:grid-cols-3">
+          <div className="min-w-0 @4xl:col-span-2">
             <SalesChart
               sales={sales}
               selectedDate={selectedDate}
@@ -843,7 +845,7 @@ export default function Dashboard() {
 
         {/* ---------------- Inventory & contacts ---------------- */}
         <Panel title="Inventory & Contacts">
-          <div className="grid gap-1 p-2 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-1 p-2 @lg:grid-cols-2 @2xl:grid-cols-5">
             <StatTile
               label="Products"
               value={overall?.products}
