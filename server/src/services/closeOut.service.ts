@@ -17,7 +17,8 @@ import { LEDGER_CODE_BY_TYPE } from "./accounts.service.js";
 // TYPES
 // ============================================================
 
-export const CLOSE_OUT_PERIODS = ["day", "week", "month", "year"] as const;
+// "custom" is any start / end date the user picks
+export const CLOSE_OUT_PERIODS = ["day", "week", "month", "year", "custom"] as const;
 
 export type CloseOutPeriod = (typeof CLOSE_OUT_PERIODS)[number];
 
@@ -40,7 +41,10 @@ type PaymentMethodKey = (typeof PAYMENT_METHODS)[number];
 
 // Local start / end of the day, week (Mon–Sun), month or year
 // that contains the given date.
-export function getPeriodRange(period: CloseOutPeriod, date: Date) {
+export function getPeriodRange(
+  period: Exclude<CloseOutPeriod, "custom">,
+  date: Date,
+) {
   const year = date.getFullYear();
   const month = date.getMonth();
   const day = date.getDate();
@@ -86,24 +90,39 @@ function dayKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-// Day → hours, week / month → days, year → months
-function bucketKey(period: CloseOutPeriod, date: Date) {
-  if (period === "day") return pad(date.getHours());
-  if (period === "year") return dayKey(date).slice(0, 7);
+type Bucket = "hour" | "day" | "month";
+
+// Day → hours, week / month → days, year → months. A custom range
+// uses hours for one day, days up to about three months, then months.
+function bucketFor(period: CloseOutPeriod, from: Date, to: Date): Bucket {
+  if (period === "day") return "hour";
+  if (period === "year") return "month";
+  if (period !== "custom") return "day";
+
+  const days = (to.getTime() - from.getTime()) / 86_400_000;
+  if (days <= 1) return "hour";
+  return days <= 92 ? "day" : "month";
+}
+
+function bucketKey(bucket: Bucket, date: Date) {
+  if (bucket === "hour") return pad(date.getHours());
+  if (bucket === "month") return dayKey(date).slice(0, 7);
   return dayKey(date);
 }
 
-function allBuckets(period: CloseOutPeriod, from: Date, to: Date) {
+function allBuckets(bucket: Bucket, from: Date, to: Date) {
   const keys: string[] = [];
 
-  if (period === "day") {
+  if (bucket === "hour") {
     for (let hour = 0; hour < 24; hour += 1) keys.push(pad(hour));
     return keys;
   }
 
-  if (period === "year") {
-    for (let m = 0; m < 12; m += 1) {
-      keys.push(`${from.getFullYear()}-${pad(m + 1)}`);
+  if (bucket === "month") {
+    const month = new Date(from.getFullYear(), from.getMonth(), 1);
+    while (month <= to) {
+      keys.push(dayKey(month).slice(0, 7));
+      month.setMonth(month.getMonth() + 1);
     }
     return keys;
   }
@@ -249,8 +268,10 @@ export async function getCloseOut(
   // Sales, cashiers, products, breakdown
   // ----------------------------------------------------------
 
+  const bucket = bucketFor(period, from, to);
+
   const breakdown = new Map(
-    allBuckets(period, from, to).map((key) => [key, { count: 0, total: 0 }]),
+    allBuckets(bucket, from, to).map((key) => [key, { count: 0, total: 0 }]),
   );
 
   const cashiers = new Map<
@@ -282,10 +303,10 @@ export async function getCloseOut(
     paid += Number(sale.paidAmount);
     due += Number(sale.dueAmount);
 
-    const bucket = breakdown.get(bucketKey(period, sale.createdAt));
-    if (bucket) {
-      bucket.count += 1;
-      bucket.total += saleTotal;
+    const bucketRow = breakdown.get(bucketKey(bucket, sale.createdAt));
+    if (bucketRow) {
+      bucketRow.count += 1;
+      bucketRow.total += saleTotal;
     }
 
     const cashier = cashiers.get(sale.user.id) ?? {

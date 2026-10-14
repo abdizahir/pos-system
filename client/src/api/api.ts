@@ -863,7 +863,12 @@ export type PaySalariesInput = {
   items: { employeeId: number; amount: number }[];
 };
 
-export type CloseOutPeriod = "day" | "week" | "month" | "year";
+export type CloseOutPeriod = "day" | "week" | "month" | "year" | "custom";
+
+// A fixed period around one date, or a custom from / to range
+export type CloseOutArgs =
+  | { period: Exclude<CloseOutPeriod, "custom">; date: string }
+  | { period: "custom"; from: string; to: string };
 
 type CloseOutMethod = "CASH" | "CARD" | "MOBILE" | "BANK";
 
@@ -2396,10 +2401,10 @@ export const api = createApi({
       providesTags: ["ProfitLoss"],
     }),
 
-    getCloseOut: builder.query<CloseOut, { period: CloseOutPeriod; date: string }>({
-      query: ({ period, date }) => ({
+    getCloseOut: builder.query<CloseOut, CloseOutArgs>({
+      query: (params) => ({
         url: "reports/close-out",
-        params: { period, date },
+        params,
       }),
       providesTags: ["ProfitLoss", "Sale", "SaleReturn", "Expense", "Purchase"],
     }),

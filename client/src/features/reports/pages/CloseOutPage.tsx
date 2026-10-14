@@ -2,7 +2,8 @@
 //
 // End-of-period close-out (EOD / EOW / EOM / EOY): sales, money
 // received, profit, expenses, purchases, VAT and top products for
-// one day, week, month or year — in the system design.
+// one day, week, month or year, or any custom date range — in the
+// system design.
 
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -45,6 +46,7 @@ const PERIODS: { key: CloseOutPeriod; short: string; label: string }[] = [
   { key: "week", short: "EOW", label: "End of Week" },
   { key: "month", short: "EOM", label: "End of Month" },
   { key: "year", short: "EOY", label: "End of Year" },
+  { key: "custom", short: "Custom", label: "Custom" },
 ];
 
 const METHOD_LABELS: Record<string, string> = {
@@ -59,7 +61,7 @@ function parseDay(value: string) {
   return new Date(`${value}T00:00:00`);
 }
 
-function shiftDate(value: string, period: CloseOutPeriod, step: number) {
+function shiftDate(value: string, period: Exclude<CloseOutPeriod, "custom">, step: number) {
   const date = parseDay(value);
   if (period === "day") date.setDate(date.getDate() + step);
   if (period === "week") date.setDate(date.getDate() + step * 7);
@@ -76,7 +78,10 @@ function periodTitle(period: CloseOutPeriod, fromIso: string, toIso: string) {
   if (period === "day") {
     return from.toLocaleDateString("en-GB", { weekday: "long", ...opts });
   }
-  if (period === "week") {
+  if (period === "custom" && from.toDateString() === to.toDateString()) {
+    return from.toLocaleDateString("en-GB", { weekday: "long", ...opts });
+  }
+  if (period === "week" || period === "custom") {
     return `${from.toLocaleDateString("en-GB", opts)} – ${to.toLocaleDateString("en-GB", opts)}`;
   }
   if (period === "month") {
@@ -104,27 +109,66 @@ export default function CloseOutPage() {
     : "day";
   const appliedDate = searchParams.get("date") || today;
 
+  // Custom range: defaults to the start of the month up to the date
+  const appliedFrom = searchParams.get("from") || `${appliedDate.slice(0, 8)}01`;
+  const appliedTo = searchParams.get("to") || appliedDate;
+
   const [date, setDate] = useState(appliedDate);
+  const [fromDate, setFromDate] = useState(appliedFrom);
+  const [toDate, setToDate] = useState(appliedTo);
+  const [rangeError, setRangeError] = useState("");
 
   const apply = (nextPeriod: CloseOutPeriod, nextDate: string) => {
     setDate(nextDate);
+    setRangeError("");
+    if (nextPeriod === "custom") {
+      setFromDate(appliedFrom);
+      setToDate(appliedTo);
+      setSearchParams(
+        { period: "custom", date: nextDate, from: appliedFrom, to: appliedTo },
+        { replace: true },
+      );
+      return;
+    }
     setSearchParams({ period: nextPeriod, date: nextDate }, { replace: true });
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (date) apply(period, date);
+
+    if (period !== "custom") {
+      if (date) apply(period, date);
+      return;
+    }
+
+    if (!fromDate || !toDate) {
+      setRangeError("Choose both a start and an end date.");
+      return;
+    }
+    if (fromDate > toDate) {
+      setRangeError("The start date must be on or before the end date.");
+      return;
+    }
+    setRangeError("");
+    setSearchParams(
+      { period: "custom", date: appliedDate, from: fromDate, to: toDate },
+      { replace: true },
+    );
   };
 
   const activePeriod = PERIODS.find((p) => p.key === period)!;
-  const nextDate = shiftDate(appliedDate, period, 1);
+  const reportTitle =
+    period === "custom" ? "Custom Range Report" : `${activePeriod.label} Report`;
+  const nextDate = period === "custom" ? appliedDate : shiftDate(appliedDate, period, 1);
 
   // --------------------------------------------------
   // Data
   // --------------------------------------------------
 
   const { data, isFetching, isError } = useGetCloseOutQuery(
-    { period, date: appliedDate },
+    period === "custom"
+      ? { period, from: appliedFrom, to: appliedTo }
+      : { period, date: appliedDate },
     { refetchOnMountOrArgChange: true },
   );
 
@@ -187,7 +231,10 @@ export default function CloseOutPage() {
   // Downloads
   // --------------------------------------------------
 
-  const fileBase = `close-out-${activePeriod.short.toLowerCase()}-${appliedDate}`;
+  const fileBase =
+    period === "custom"
+      ? `close-out-${appliedFrom}-to-${appliedTo}`
+      : `close-out-${activePeriod.short.toLowerCase()}-${appliedDate}`;
 
   const rowsFor = (rows: Row[]) => rows.map((row) => [row.label, money(row.value)]);
 
@@ -250,7 +297,7 @@ export default function CloseOutPage() {
   const handleExcel = () => {
     if (!data) return;
     const rows: (string | number)[][] = [
-      [`${activePeriod.label} Report`],
+      [reportTitle],
       ["Period", title],
     ];
     for (const table of pdfTables()) {
@@ -265,7 +312,7 @@ export default function CloseOutPage() {
     if (!data) return;
     setIsPdfLoading(true);
     try {
-      await downloadPdf(`${fileBase}.pdf`, `${activePeriod.label} Report`, [`Period: ${title}`], pdfTables(), pdfShop);
+      await downloadPdf(`${fileBase}.pdf`, reportTitle, [`Period: ${title}`], pdfTables(), pdfShop);
     } catch (error) {
       console.error("PDF export failed:", error);
     } finally {
@@ -283,7 +330,7 @@ export default function CloseOutPage() {
     <section id="close-out-page" className="bg-[#F7F7F7] p-6">
       <ReportHeader
         title="Close-Out Report"
-        subtitle="End of day, week, month and year totals"
+        subtitle="End of day, week, month and year totals, or any date range"
         onPdf={handlePdf}
         onExcel={handleExcel}
         disabled={!data}
@@ -320,8 +367,49 @@ export default function CloseOutPage() {
                 {p.label}
               </button>
             ))}
+
+            {period === "custom" && (
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="close-out-from" className="text-sm font-medium text-text-two">
+                  From
+                </label>
+                <input
+                  id="close-out-from"
+                  type="date"
+                  value={fromDate}
+                  max={toDate || today}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="h-8.5 rounded-lg border border-[#E6EAED] bg-white px-2.5 text-sm text-text-two outline-0 focus:border-[#FE9F43]"
+                />
+                <label htmlFor="close-out-to" className="text-sm font-medium text-text-two">
+                  To
+                </label>
+                <input
+                  id="close-out-to"
+                  type="date"
+                  value={toDate}
+                  min={fromDate || undefined}
+                  max={today}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="h-8.5 rounded-lg border border-[#E6EAED] bg-white px-2.5 text-sm text-text-two outline-0 focus:border-[#FE9F43]"
+                />
+                <button
+                  type="submit"
+                  className="h-8.5 px-4 rounded-lg bg-[#FE9F43] text-white text-sm font-medium cursor-pointer transition-opacity hover:opacity-90"
+                >
+                  Submit
+                </button>
+              </div>
+            )}
           </div>
         </div>
+
+        {rangeError && (
+          <p className="px-5 pb-3 text-right text-sm text-red-500">{rangeError}</p>
+        )}
+
+        {period !== "custom" && (
+          <>
         <hr className="border-t border-[#E6EAED]" />
 
         <div className="px-5 py-4 flex flex-wrap items-end gap-3">
@@ -365,6 +453,8 @@ export default function CloseOutPage() {
             Submit
           </button>
         </div>
+          </>
+        )}
       </form>
 
       <ErrorBanner message={isError ? "Failed to load the close-out report." : ""} />
