@@ -1,9 +1,10 @@
 import { useSelector } from "react-redux";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import {
   FiBarChart2,
   FiBox,
   FiCheckCircle,
+  FiClock,
   FiShield,
   FiShoppingCart,
   FiTrendingUp,
@@ -23,6 +24,8 @@ const FEATURES = [
 export default function LoginPage() {
   const token = useSelector((state: RootState) => state.auth.token);
   const { name: shopName } = useShop();
+  const [searchParams] = useSearchParams();
+  const signedOutForIdle = searchParams.get("reason") === "idle";
 
   // Already signed in
   if (token) return <Navigate to="/dashboard" replace />;
@@ -106,6 +109,13 @@ export default function LoginPage() {
           <div className="rounded-3xl bg-white p-7 shadow-xl shadow-black/5 ring-1 ring-[#E6EAED] sm:p-8 lg:bg-transparent lg:p-0 lg:shadow-none lg:ring-0">
             <h2 className="text-2xl font-bold tracking-tight text-text-two sm:text-3xl">Welcome back</h2>
             <p className="mb-7 mt-1.5 text-sm text-[#646B72]">Sign in to open your register.</p>
+
+            {signedOutForIdle && (
+              <p className="mb-5 flex items-start gap-2 rounded-lg border border-[#FFD8B0] bg-[#FFF4E8] px-3 py-2.5 text-sm text-[#9A5A16]">
+                <FiClock size={16} className="mt-0.5 shrink-0" />
+                You were signed out after 15 minutes without activity.
+              </p>
+            )}
 
             <LoginForm />
           </div>

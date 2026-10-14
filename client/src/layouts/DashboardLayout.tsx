@@ -9,6 +9,7 @@ import Sidebar from "../components/sidebar/Sidebar";
 import SideBarModal from "../components/sidebar/SideBarModal";
 import SidebarMobile from "../components/sidebar/SidebarMobile";
 import Footer from "../components/Footer";
+import { useIdleLogout } from "../components/useIdleLogout";
 
 import type { RootState } from "../store/store";
 
@@ -26,6 +27,9 @@ export default function DashboardLayout() {
   useLayoutEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 });
   }, [pathname]);
+
+  // Sign out after 15 minutes without activity; warn in the last minute
+  const idleSecondsLeft = useIdleLogout();
 
   return (
     <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
@@ -54,6 +58,29 @@ export default function DashboardLayout() {
           </div>
         </main>
       </div>
+
+      {idleSecondsLeft !== null && (
+        <div
+          role="alert"
+          className="fixed bottom-4 right-4 left-4 z-10000 rounded-xl border border-[#E6EAED] bg-white p-4 shadow-2xl sm:left-auto sm:w-80 print:hidden"
+        >
+          <p className="font-semibold text-text-two">Still there?</p>
+          <p className="mt-1 text-sm text-[#646B72]">
+            You will be signed out in{" "}
+            <span className="font-semibold text-[#E53E3E] tabular-nums">
+              {idleSecondsLeft}s
+            </span>{" "}
+            because there was no activity.
+          </p>
+          {/* Any click counts as activity, which hides this */}
+          <button
+            type="button"
+            className="mt-3 w-full rounded-lg bg-[#FE9F43] px-3 py-2 text-sm font-medium text-white cursor-pointer hover:opacity-90"
+          >
+            Stay signed in
+          </button>
+        </div>
+      )}
     </div>
   );
 }
