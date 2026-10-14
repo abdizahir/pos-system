@@ -189,7 +189,6 @@ export default function PayrollModal({ employeeIds, onClose }: Props) {
   return createPortal(
     <div
       className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
     >
       <div
         role="dialog"

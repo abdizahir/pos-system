@@ -4,20 +4,21 @@ import type { ReactNode } from "react";
 type DialogModalProps = {
   open: boolean;
   children: ReactNode;
-  onClick: () => void;
+  // Kept for callers; clicking outside no longer closes the modal
+  onClick?: () => void;
 };
 
+// Closes only from its own buttons (✕ / Cancel), so a stray click
+// outside never loses what was typed
 export default function ViewModal({
   open,
   children,
-  onClick,
 }: DialogModalProps) {
   if (!open) return null;
 
   return createPortal(
     <div
       className="fixed inset-0 z-9999 bg-black/50 flex items-center justify-center p-4"
-      onClick={onClick}
     >
       <div
         className="w-full max-w-235 bg-white rounded-lg shadow-xl overflow-hidden"
