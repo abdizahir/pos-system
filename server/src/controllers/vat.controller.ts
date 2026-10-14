@@ -2,6 +2,7 @@
 
 import type { Request, Response } from "express";
 import { getVatStatement } from "../services/vat.service.js";
+import { clientMessage } from "../utils/clientMessage.js";
 
 // GET /api/reports/vat?from=YYYY-MM-DD&to=YYYY-MM-DD
 export async function getVatController(req: Request, res: Response) {
@@ -35,7 +36,7 @@ export async function getVatController(req: Request, res: Response) {
 
     return res.status(500).json({
       message:
-        error instanceof Error ? error.message : "Failed to build VAT report",
+        clientMessage(error, "Failed to build VAT report"),
     });
   }
 }

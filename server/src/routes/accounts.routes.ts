@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { accountController } from "../controllers/accounts.controller.js";
-import { authenticate } from "../middleware/auth.middleware.js";
+import { authenticate, requireManagement } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -8,10 +8,11 @@ const router = Router();
 router.get("/", authenticate, accountController.getAllAccounts);
 
 // Get ledger balances by account type
-router.get("/ledger/balances", authenticate, accountController.getLedgerBalances);
+// Money balances and statements: manager only
+router.get("/ledger/balances", authenticate, requireManagement, accountController.getLedgerBalances);
 
 // Get ledger statement by account type (CASH, BANK, WALLET, MERCHANT)
-router.get("/ledger/:type/statement", authenticate, accountController.getLedgerStatementByType);
+router.get("/ledger/:type/statement", authenticate, requireManagement, accountController.getLedgerStatementByType);
 
 // Get account by ID
 router.get("/:id", authenticate, accountController.getAccountById);

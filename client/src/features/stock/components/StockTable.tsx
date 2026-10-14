@@ -25,6 +25,7 @@ import {
 import { useGetProductsQuery } from "../../../api/api";
 import DialogModal from "../../../components/DialogModal";
 import AdjustStockModal, { type AdjustTarget } from "./AdjustStockModal";
+import { csvCell } from "../../reports/reportUtils";
 
 // ============================================================
 // TYPES + HELPERS
@@ -76,9 +77,6 @@ function isExpired(batch: StockBatch, today: number) {
   return expiry.getTime() < today;
 }
 
-function csvCell(value: string | number) {
-  return `"${String(value).replaceAll('"', '""')}"`;
-}
 
 // ============================================================
 // PIECES

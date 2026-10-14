@@ -30,7 +30,8 @@ export const authService = {
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       secret,
-      { algorithm: "HS256", expiresIn: "1d" },
+      // About one shop day; signing out also ends it early
+      { algorithm: "HS256", expiresIn: "12h" },
     );
 
     return {

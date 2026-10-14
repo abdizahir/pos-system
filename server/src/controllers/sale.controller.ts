@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import * as saleService from "../services/sale.service.js";
+import { clientMessage } from "../utils/clientMessage.js";
 
 // ============================================================
 // CREATE SALE
@@ -34,9 +35,7 @@ export async function createSale(
     );
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to create sale";
+      clientMessage(error, "Failed to create sale");
 
     return res.status(400).json({
       message,
@@ -92,9 +91,7 @@ export async function getSales(
     );
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to get sales";
+      clientMessage(error, "Failed to get sales");
 
     return res.status(500).json({
       message,
@@ -145,9 +142,7 @@ export async function getSale(
     );
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to get sale";
+      clientMessage(error, "Failed to get sale");
 
     return res.status(500).json({
       message,
@@ -302,9 +297,7 @@ export async function addSalePayment(
     );
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to add payment";
+      clientMessage(error, "Failed to add payment");
 
     return res.status(400).json({
       message,
@@ -352,9 +345,7 @@ export async function cancelSale(
     );
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to cancel sale";
+      clientMessage(error, "Failed to cancel sale");
 
     // ========================================================
     // SALE NOT FOUND

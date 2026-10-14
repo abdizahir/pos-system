@@ -7,6 +7,7 @@ import {
   getPeriodRange,
   type CloseOutPeriod,
 } from "../services/closeOut.service.js";
+import { clientMessage } from "../utils/clientMessage.js";
 
 // A local calendar date from YYYY-MM-DD, or null when invalid
 function parseDay(value: unknown) {
@@ -87,9 +88,7 @@ export async function getCloseOutController(
     console.error("Close-out error:", error);
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to build close-out report";
+      clientMessage(error, "Failed to build close-out report");
 
     return res.status(500).json({ message });
   }

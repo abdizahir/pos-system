@@ -6,6 +6,19 @@ import type {
 
 import * as productService from "../services/product.service.js";
 
+// Cashiers see stock levels but not what the shop paid for them
+function hideCosts<T>(product: T, req: Request): T {
+  if (req.user?.role === "MANAGER" || !product || typeof product !== "object") {
+    return product;
+  }
+  const withBatches = product as { stockBatches?: Record<string, unknown>[] };
+  if (!Array.isArray(withBatches.stockBatches)) return product;
+  return {
+    ...product,
+    stockBatches: withBatches.stockBatches.map(({ purchasePrice: _cost, ...batch }) => batch),
+  };
+}
+
 // ============================================================
 // GET ALL PRODUCTS
 // ============================================================
@@ -19,7 +32,9 @@ export async function getProducts(
     const products =
       await productService.getProducts();
 
-    return res.status(200).json(products);
+    return res
+      .status(200)
+      .json(products.map((product) => hideCosts(product, req)));
   } catch (error) {
     next(error);
   }
@@ -40,7 +55,7 @@ export async function getProduct(
     const product =
       await productService.getProduct(id);
 
-    return res.status(200).json(product);
+    return res.status(200).json(hideCosts(product, req));
   } catch (error) {
     next(error);
   }

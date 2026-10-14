@@ -25,7 +25,7 @@ import {
   useGetProfitLossQuery,
 } from "../../../api/api";
 import { shopDetailsLine, useShop } from "../../shop/useShop";
-import { writePdfShopHeader } from "../reportUtils";
+import { writePdfShopHeader, csvCell } from "../reportUtils";
 
 // ============================================================
 // HELPERS
@@ -62,9 +62,6 @@ function percent(part: number, whole: number) {
   return whole ? `${((part / whole) * 100).toFixed(1)}%` : "—";
 }
 
-function csvCell(value: string | number) {
-  return `"${String(value).replaceAll('"', '""')}"`;
-}
 
 // Quick ranges for the date filter
 function presetRange(key: string) {

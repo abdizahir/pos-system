@@ -104,7 +104,8 @@ app.use("/api/customers", customerRoutes);
 
 // Anyone can look up (the POS needs products and accounts); only the manager can change
 app.use("/api/products", managementForWrites, productRoutes);
-app.use("/api/stocks", managementForWrites, stockRoutes);
+// Stock shows purchase prices; no cashier page needs it
+app.use("/api/stocks", requireManagement, stockRoutes);
 app.use("/api/categories", managementForWrites, categoryRoutes);
 app.use("/api/units", managementForWrites, unitRoutes);
 app.use("/api/accounts", managementForWrites, accountsRoutes);
@@ -125,6 +126,17 @@ app.use("/api/reports", requireManagement, reportRoutes);
 // Turn errors into safe responses. Database and unexpected errors
 // never expose their internals to the client.
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  // Request body problems (too large, broken JSON) are the client's,
+  // not a server failure
+  if (err && typeof err === "object" && "type" in err) {
+    if (err.type === "entity.too.large") {
+      return res.status(413).json({ message: "The request is too large." });
+    }
+    if (err.type === "entity.parse.failed") {
+      return res.status(400).json({ message: "The request is not valid JSON." });
+    }
+  }
+
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2002") {
       return res.status(409).json({ message: "A record with these details already exists." });

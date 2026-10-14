@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { useGetSalesQuery } from "../../../api/api";
 import { StatusBadge } from "./SaleModalParts";
 import { customerName, etb } from "./saleHelpers";
+import { useCurrentUser } from "../../auth/useCurrentUser";
 
 type MenuAction = {
   label: string;
@@ -24,8 +25,12 @@ type MenuAction = {
   danger?: boolean;
 };
 
-// What can be done with a sale in each status
-function actionsFor(sale: { id: number; status: string }): MenuAction[] {
+// What can be done with a sale in each status. Returns pay money
+// back, so only the manager sees them.
+function actionsFor(
+  sale: { id: number; status: string },
+  isManager: boolean,
+): MenuAction[] {
   const view = { label: "View Sale", icon: FiEye, to: `/sales/${sale.id}` };
 
   switch (sale.status) {
@@ -36,10 +41,9 @@ function actionsFor(sale: { id: number; status: string }): MenuAction[] {
         { label: "Cancel Sale", icon: FiTrash2, to: `/sales/${sale.id}/cancel`, danger: true },
       ];
     case "COMPLETED":
-      return [
-        view,
-        { label: "Return Sale", icon: FiRotateCcw, to: `/sales/${sale.id}/return` },
-      ];
+      return isManager
+        ? [view, { label: "Return Sale", icon: FiRotateCcw, to: `/sales/${sale.id}/return` }]
+        : [view];
     default:
       return [view];
   }
@@ -54,6 +58,7 @@ const METHOD_LABELS: Record<string, string> = {
 
 export default function SaleTable() {
   const { data: sales = [], isLoading, isError } = useGetSalesQuery();
+  const { isManager } = useCurrentUser();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
@@ -210,7 +215,7 @@ export default function SaleTable() {
                           }
                           const rect = e.currentTarget.getBoundingClientRect();
                           // ~36px per item; open upward when it won't fit below
-                          const menuHeight = actionsFor(sale).length * 36 + 8;
+                          const menuHeight = actionsFor(sale, isManager).length * 36 + 8;
                           const fitsBelow = rect.bottom + 6 + menuHeight <= window.innerHeight;
                           setMenu({
                             saleId: sale.id,
@@ -245,7 +250,7 @@ export default function SaleTable() {
             style={{ top: menu.top, right: menu.right }}
             className="fixed z-50 w-44 overflow-hidden rounded-lg border border-[#E6EAED] bg-white py-1 shadow-lg"
           >
-            {actionsFor(openSale).map((action) => {
+            {actionsFor(openSale, isManager).map((action) => {
               const Icon = action.icon;
               return (
                 <button

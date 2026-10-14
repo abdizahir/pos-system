@@ -33,12 +33,12 @@ export async function authenticate(
     });
   }
 
-  let payload: { id: number };
+  let payload: { id: number; iat?: number };
 
   try {
     payload = jwt.verify(token, secret, {
       algorithms: ["HS256"],
-    }) as { id: number };
+    }) as { id: number; iat?: number };
   } catch {
     return res.status(401).json({
       message: "Invalid token",
@@ -50,12 +50,22 @@ export async function authenticate(
     // or deactivation takes effect immediately, not when the token expires
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
-      select: { id: true, role: true, isActive: true },
+      select: { id: true, role: true, isActive: true, tokensValidAfter: true },
     });
 
     if (!user || !user.isActive) {
       return res.status(401).json({
         message: "Your account is no longer active.",
+      });
+    }
+
+    // Signed out since this token was issued
+    if (
+      user.tokensValidAfter &&
+      (payload.iat ?? 0) < Math.floor(user.tokensValidAfter.getTime() / 1000)
+    ) {
+      return res.status(401).json({
+        message: "You have been signed out. Please sign in again.",
       });
     }
 

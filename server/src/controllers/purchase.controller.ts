@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { purchaseService } from "../services/purchase.service.js";
+import { clientMessage } from "../utils/clientMessage.js";
 
 // ============================================================
 // GET ALL PURCHASES
@@ -22,9 +23,7 @@ export const getPurchasesController = async (
     return res.status(500).json({
       success: false,
       message:
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch purchases",
+        clientMessage(error, "Failed to fetch purchases"),
     });
   }
 };
@@ -57,9 +56,7 @@ export const getPurchaseByIdController = async (
     console.error("Get purchase error:", error);
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to fetch purchase";
+      clientMessage(error, "Failed to fetch purchase");
 
     if (message === "Purchase not found") {
       return res.status(404).json({
@@ -240,9 +237,7 @@ export const createPurchaseController = async (
     console.error("Create purchase error:", error);
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to create purchase";
+      clientMessage(error, "Failed to create purchase");
 
     if (
       message.includes("Supplier not found") ||
@@ -433,9 +428,7 @@ export const updatePurchaseController = async (
     console.error("Update purchase error:", error);
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to update purchase";
+      clientMessage(error, "Failed to update purchase");
 
     if (message === "Purchase not found") {
       return res.status(404).json({
@@ -480,9 +473,7 @@ export const cancelPurchaseController = async (
     console.error("Cancel purchase error:", error);
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to cancel purchase";
+      clientMessage(error, "Failed to cancel purchase");
 
     if (message === "Purchase not found") {
       return res.status(404).json({

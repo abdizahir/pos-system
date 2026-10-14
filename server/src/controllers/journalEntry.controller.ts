@@ -7,6 +7,7 @@ import {
   deleteJournalEntryService,
   JournalEntryLockedError,
 } from "../services/journalEntry.service.js";
+import { clientMessage } from "../utils/clientMessage.js";
 
 export const createJournalEntry = async (req: Request, res: Response) => {
   try {
@@ -25,9 +26,7 @@ export const createJournalEntry = async (req: Request, res: Response) => {
 
     return res.status(400).json({
       message:
-        error instanceof Error
-          ? error.message
-          : "Failed to create journal entry",
+        clientMessage(error, "Failed to create journal entry"),
     });
   }
 };
@@ -64,7 +63,7 @@ export const getJournalEntryById = async (req: Request, res: Response) => {
 
     return res.status(404).json({
       message:
-        error instanceof Error ? error.message : "Journal entry not found",
+        clientMessage(error, "Journal entry not found"),
     });
   }
 };
@@ -93,7 +92,7 @@ export const deleteJournalEntry = async (req: Request, res: Response) => {
 
     return res.status(404).json({
       message:
-        error instanceof Error ? error.message : "Journal entry not found",
+        clientMessage(error, "Journal entry not found"),
     });
   }
 };

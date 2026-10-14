@@ -22,9 +22,12 @@ import {
 import DialogModal from "../../../../components/DialogModal";
 import EditCustomer from "./EditCustomer";
 import DeleteCustomer from "./DeleteCustomer";
+import { useCurrentUser } from "../../../auth/useCurrentUser";
 
 export default function CustomerTable() {
   const dispatch = useDispatch();
+  // Cashiers add customers; changing or removing them is the manager's
+  const { isManager } = useCurrentUser();
 
   // ==================================================
   // SEARCH
@@ -227,7 +230,7 @@ export default function CustomerTable() {
                 <th className="px-6 py-4">Address</th>
                 <th className="px-6 py-4">Due Amount</th>
 
-                <th className="px-6 py-4 text-center">Actions</th>
+                {isManager && <th className="px-6 py-4 text-center">Actions</th>}
               </tr>
             </thead>
 
@@ -318,6 +321,7 @@ export default function CustomerTable() {
 
                     {/* QACTIONS */}
 
+                    {isManager && (
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         {/* EDIT */}
@@ -343,6 +347,7 @@ export default function CustomerTable() {
                         </button>
                       </div>
                     </td>
+                    )}
                   </tr>
                 ))}
             </tbody>

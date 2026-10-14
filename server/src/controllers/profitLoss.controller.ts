@@ -2,6 +2,7 @@
 
 import type { Request, Response } from "express";
 import { getProfitLoss } from "../services/profitLoss.service.js";
+import { clientMessage } from "../utils/clientMessage.js";
 
 export async function getProfitLossController(
   req: Request,
@@ -48,9 +49,7 @@ export async function getProfitLossController(
     console.error("P&L error:", error);
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to build profit and loss";
+      clientMessage(error, "Failed to build profit and loss");
 
     return res.status(500).json({ message });
   }

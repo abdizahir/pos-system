@@ -2,6 +2,7 @@
 
 import type { Request, Response } from "express";
 import { getDashboard } from "../services/dashboard.service.js";
+import { clientMessage } from "../utils/clientMessage.js";
 
 export async function getDashboardController(
   req: Request,
@@ -35,9 +36,7 @@ export async function getDashboardController(
     console.error("Dashboard error:", error);
 
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to build dashboard";
+      clientMessage(error, "Failed to build dashboard");
 
     return res.status(500).json({ message });
   }

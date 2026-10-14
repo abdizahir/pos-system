@@ -5,7 +5,7 @@ import {
   getSaleReturns,
   getSaleReturn,
 } from "../controllers/SaleReturn.controller.js";
-import { authenticate } from "../middleware/auth.middleware.js";
+import { authenticate, requireManagement } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -23,6 +23,7 @@ router.get(
   getSaleReturn,
 );
 
-router.post("/:id", authenticate, createSaleReturn);
+// Returns pay money back, so only the manager can do them
+router.post("/:id", authenticate, requireManagement, createSaleReturn);
 
 export default router;

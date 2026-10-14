@@ -21,7 +21,12 @@ import {
   FiUser,
 } from "react-icons/fi";
 
-import { useGetOverdueSalesQuery, useGetProductAlertsQuery } from "../api/api";
+import {
+  api,
+  useGetOverdueSalesQuery,
+  useGetProductAlertsQuery,
+  useLogoutMutation,
+} from "../api/api";
 import { clearToken } from "../features/auth/auth.slice";
 import { openSidebar } from "../store/posSlice";
 import type { RootState } from "../store/store";
@@ -403,8 +408,14 @@ function UserMenu({ compact }: { compact?: boolean }) {
   const role = (me?.role ?? user.role)?.toLowerCase() ?? "";
   const initials = email.slice(0, 2).toUpperCase();
 
-  const handleLogout = () => {
+  const [logout] = useLogoutMutation();
+
+  const handleLogout = async () => {
+    // Tell the server first, so the token can't be reused; sign out
+    // here even if that fails (e.g. offline)
+    await logout().unwrap().catch(() => undefined);
     dispatch(clearToken());
+    dispatch(api.util.resetApiState());
     navigate("/login");
   };
 

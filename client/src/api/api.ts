@@ -2421,6 +2421,11 @@ export const api = createApi({
       keepUnusedDataFor: 60 * 60,
     }),
 
+    // Ends this user's logins on the server too
+    logout: builder.mutation<{ message: string }, void>({
+      query: () => ({ url: "auth/logout", method: "POST" }),
+    }),
+
     getMe: builder.query<Me, void>({
       query: () => "me",
       providesTags: ["Me"],
@@ -2545,6 +2550,7 @@ export const {
   // Auth
   useRegisterMutation,
   useLoginMutation,
+  useLogoutMutation,
 
   // Products
   useGetProductsQuery,

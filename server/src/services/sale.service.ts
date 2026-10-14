@@ -14,6 +14,13 @@ import {
 
 const VAT_PAYABLE_CODE = "2100";
 
+// The most a cashier can discount a sale, as a percent of its
+// subtotal. Each shop can change it with MAX_CASHIER_DISCOUNT_PERCENT.
+function cashierDiscountLimit() {
+  const value = Number(process.env.MAX_CASHIER_DISCOUNT_PERCENT ?? 10);
+  return Number.isFinite(value) && value >= 0 ? Math.min(value, 100) : 10;
+}
+
 function round2(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -203,6 +210,7 @@ export async function createSale(
           select: {
             id: true,
             isActive: true,
+            role: true,
           },
         });
 
@@ -446,6 +454,24 @@ export async function createSale(
         throw new Error(
           "Discount cannot be more than the subtotal",
         );
+      }
+
+      // Cashiers can only give a small discount; larger ones need
+      // the manager. Line discounts count too.
+      if (user.role !== "MANAGER") {
+        const lineDiscounts = data.items.reduce(
+          (sum, item) => sum + Number(item.discount ?? 0),
+          0,
+        );
+        const givenDiscount = Math.max(data.discount, lineDiscounts);
+        const limitPercent = cashierDiscountLimit();
+        const limit = round2((data.subtotal * limitPercent) / 100);
+
+        if (givenDiscount > limit + 0.005) {
+          throw new Error(
+            `Cashiers can give at most ${limitPercent}% discount (ETB ${limit.toFixed(2)} on this sale). Ask the manager for a bigger discount.`,
+          );
+        }
       }
 
       const expectedTotal = round2(

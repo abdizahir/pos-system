@@ -55,8 +55,19 @@ export const REPORT_INPUT =
 // Excel (CSV that opens directly in Excel)
 // ------------------------------------------------------------
 
-function csvCell(value: string | number) {
-  return `"${String(value).replaceAll('"', '""')}"`;
+// One CSV cell. Text starting with = + - @ would run as a formula
+// when the file is opened in Excel, so it gets a leading ' (plain
+// numbers such as -12.50 are left alone).
+export function csvCell(value: string | number) {
+  let text = String(value);
+  if (
+    typeof value === "string" &&
+    /^[=+\-@\t\r]/.test(text) &&
+    !/^-?[\d,]+(\.\d+)?$/.test(text)
+  ) {
+    text = `'${text}`;
+  }
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 export function downloadCsv(fileName: string, rows: (string | number)[][]) {

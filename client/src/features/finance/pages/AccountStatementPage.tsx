@@ -14,7 +14,7 @@ import {
   type LedgerType,
 } from "../../../api/api";
 import { shopDetailsLine, useShop } from "../../shop/useShop";
-import { writePdfShopHeader } from "../../reports/reportUtils";
+import { writePdfShopHeader, csvCell } from "../../reports/reportUtils";
 
 // ============================================================
 // HELPERS
@@ -46,9 +46,6 @@ function money(value: number) {
   });
 }
 
-function csvCell(value: string | number) {
-  return `"${String(value).replaceAll('"', '""')}"`;
-}
 
 // "OTHER_INCOME" → "Other Income"; already-readable names are kept
 function categoryLabel(value: string) {

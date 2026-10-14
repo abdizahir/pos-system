@@ -17,6 +17,8 @@ model User {
   passwordHash String   @map("password_hash")
   role         String
   isActive     Boolean  @default(true) @map("is_active")
+  // Logins issued before this time are refused (set on sign-out)
+  tokensValidAfter DateTime? @map("tokens_valid_after")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
