@@ -29,11 +29,13 @@ export default function ProductTable() {
     null,
   );
 
+  // Taken once per visit, so the table doesn't change between renders
+  const [now] = useState(() => Date.now());
+
+  // Usable stock: all batches that haven't expired
   const getAvailableQuantity = (
     stockBatches: NonNullable<(typeof products)[number]["stockBatches"]> = [],
   ) => {
-    const now = Date.now();
-
     return stockBatches.reduce((total, batch) => {
       const isExpired =
         batch.expiryDate !== null && new Date(batch.expiryDate).getTime() < now;
@@ -46,14 +48,8 @@ export default function ProductTable() {
     }, 0);
   };
 
+  // Every product is listed, including ones with no stock left
   const filteredProducts = products.filter((product) => {
-    const availableQuantity = getAvailableQuantity(product.stockBatches);
-
-    // Hide products that have no usable stock
-    if (availableQuantity <= 0) {
-      return false;
-    }
-
     const matchesSearch =
       product.productName.toLowerCase().startsWith(search.toLowerCase()) ||
       product.sku.toLowerCase().startsWith(search.toLowerCase()) ||
@@ -190,7 +186,17 @@ export default function ProductTable() {
                     ETB {product.sellingPrice.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    {getAvailableQuantity(product.stockBatches)}
+                    {(() => {
+                      const quantity = getAvailableQuantity(product.stockBatches);
+                      return quantity > 0 ? (
+                        quantity
+                      ) : (
+                        <span className="inline-flex flex-col items-center leading-tight">
+                          <span className="font-semibold text-red-500">0</span>
+                          <span className="text-[11px] text-red-500">Out of stock</span>
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4 text-center">{product.vat}%</td>
                   <td className="px-6 py-4 text-center flex items-center gap-2">
