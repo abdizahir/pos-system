@@ -15,7 +15,7 @@ export default function Modal({ children, size = "md" }: ModalProps) {
       <div
         className={`w-full ${
           size === "lg" ? "max-w-3xl" : size === "sm" ? "max-w-100" : "max-w-xl"
-        } max-h-[90vh] overflow-y-auto rounded-lg bg-[#F7F7F7] shadow-xl`}
+        } max-h-[90dvh] overflow-y-auto rounded-lg bg-[#F7F7F7] shadow-xl`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

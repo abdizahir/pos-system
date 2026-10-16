@@ -89,7 +89,7 @@ export default function ImportProducts({ onClose }: ImportProductsProps) {
       </div>
       <hr className="border-t border-[#D1D5DB]" />
 
-      <div className="max-h-[70vh] overflow-y-auto p-5 flex flex-col gap-4">
+      <div className="max-h-[70dvh] overflow-y-auto p-5 flex flex-col gap-4">
         {result ? (
           <>
             <div className="rounded-lg border border-[#E6EAED] bg-white p-4">

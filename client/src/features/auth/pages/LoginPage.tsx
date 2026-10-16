@@ -31,7 +31,7 @@ export default function LoginPage() {
   if (token) return <Navigate to="/dashboard" replace />;
 
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+    <div className="grid min-h-app bg-white lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
       {/* ---------------- Brand panel ---------------- */}
       <aside className="relative hidden overflow-hidden bg-[#1B2850] p-10 text-white lg:flex lg:flex-col xl:p-14">
         <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-[#FE9F43]/25 blur-3xl" />

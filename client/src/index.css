@@ -9,6 +9,35 @@
 
 body {
   font-family: "Inter", sans-serif;
+  /* No grey flash on tapped buttons in mobile Safari/Chrome */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Full visible height. On phones 100vh includes the space under the
+   browser toolbar, which hides the bottom of the app; dvh follows the
+   toolbar. Browsers without dvh keep the vh value. */
+@utility h-app {
+  height: 100vh;
+  @supports (height: 100dvh) {
+    height: 100dvh;
+  }
+}
+
+@utility min-h-app {
+  min-height: 100vh;
+  @supports (height: 100dvh) {
+    min-height: 100dvh;
+  }
+}
+
+/* iOS Safari zooms in on any field with text under 16px when it is
+   focused, and stays zoomed. Touch screens get 16px fields instead. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -26,4 +55,12 @@ body {
 
 .custom-scrollbar::-webkit-scrollbar-button {
   display: none;
+}
+
+/* Firefox has no ::-webkit-scrollbar; give it the same thin grey bar */
+@supports not selector(::-webkit-scrollbar) {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #a6aaaf transparent;
+  }
 }

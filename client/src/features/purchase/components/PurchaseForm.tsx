@@ -473,7 +473,7 @@ export default function PurchaseForm({
           FORM CONTENT
       ======================================== */}
 
-      <div className="p-5 max-h-[60vh] overflow-y-auto">
+      <div className="p-5 max-h-[60dvh] overflow-y-auto">
 
         {/* ========================================
             SUPPLIER

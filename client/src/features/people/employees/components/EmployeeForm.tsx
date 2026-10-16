@@ -114,7 +114,7 @@ export default function EmployeeForm({ employee, onClose }: EmployeeFormProps) {
       <hr className="border-t border-[#D1D5DB]" />
 
       <form autoComplete="off" onSubmit={handleSubmit}>
-        <div className="p-5 max-h-[60vh] overflow-y-auto text-left">
+        <div className="p-5 max-h-[60dvh] overflow-y-auto text-left">
           {/* National ID */}
           <div className="flex flex-col items-start mb-4">
             <label htmlFor="nationalId" className="text-sm font-medium mb-2">

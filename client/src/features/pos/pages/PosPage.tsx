@@ -665,7 +665,7 @@ export default function PosPage() {
         </div>
 
         {/* ================= CART / CHECKOUT ================= */}
-        <aside className="flex flex-col rounded-2xl border border-[#E6EAED] bg-white shadow-sm @3xl:sticky @3xl:top-6 @3xl:max-h-[calc(100vh-3rem)]">
+        <aside className="flex flex-col rounded-2xl border border-[#E6EAED] bg-white shadow-sm @3xl:sticky @3xl:top-6 @3xl:max-h-[calc(100dvh-3rem)]">
           <div className="flex items-center justify-between border-b border-[#E6EAED] px-5 py-4">
             <div className="flex items-center gap-2">
               <FiShoppingCart className="text-[#FE9F43]" size={18} />

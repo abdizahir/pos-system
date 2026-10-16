@@ -114,7 +114,7 @@ export default function ResumeSale() {
 
       <div className="p-5 space-y-4">
         {/* ---------------- Products ---------------- */}
-        <Card className="overflow-hidden">
+        <Card className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-left font-semibold text-gray-700">

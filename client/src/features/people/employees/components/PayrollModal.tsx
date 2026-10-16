@@ -23,6 +23,13 @@ import { currentPeriod, periodLabel } from "../payroll";
 
 type Method = SalaryPayment["paymentMethod"];
 
+const MONTHS = Array.from({ length: 12 }, (_, i) =>
+  new Date(2000, i, 1).toLocaleDateString("en-US", { month: "long" }),
+);
+
+// This year and the four before it
+const YEARS = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i));
+
 const METHODS: { value: Method; label: string; icon: IconType }[] = [
   { value: "CASH", label: "Cash", icon: FiDollarSign },
   { value: "BANK", label: "Bank", icon: FiHome },
@@ -183,6 +190,12 @@ export default function PayrollModal({ employeeIds, onClose }: Props) {
     }
   };
 
+  const changePeriod = (next: string) => {
+    setPeriod(next);
+    setDone("");
+    setError("");
+  };
+
   const inputClass =
     "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#FE9F43]";
 
@@ -193,7 +206,7 @@ export default function PayrollModal({ employeeIds, onClose }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-[#F7F7F7] shadow-xl"
+        className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-[#F7F7F7] shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -217,19 +230,40 @@ export default function PayrollModal({ employeeIds, onClose }: Props) {
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
           {/* Month */}
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium">Salary month</span>
-              <input
-                type="month"
-                value={period}
-                onChange={(e) => {
-                  setPeriod(e.target.value);
-                  setDone("");
-                  setError("");
-                }}
-                className={inputClass}
-              />
-            </label>
+            {/* Two selects, not <input type="month">: desktop Firefox and
+                Safari show that as a plain text box */}
+            <fieldset>
+              <legend className="mb-1.5 block text-sm font-medium">Salary month</legend>
+              <div className="flex gap-2">
+                <select
+                  aria-label="Month"
+                  value={period.slice(5, 7)}
+                  onChange={(e) => changePeriod(`${period.slice(0, 4)}-${e.target.value}`)}
+                  className={inputClass}
+                >
+                  {MONTHS.map((label, index) => {
+                    const value = String(index + 1).padStart(2, "0");
+                    return (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+                <select
+                  aria-label="Year"
+                  value={period.slice(0, 4)}
+                  onChange={(e) => changePeriod(`${e.target.value}-${period.slice(5, 7)}`)}
+                  className={`${inputClass} w-28!`}
+                >
+                  {YEARS.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </fieldset>
             <p className="text-sm text-[#646B72]">
               {payments.length} of {employees.length} paid for {periodLabel(period)}
               {paidTotal > 0 && (
@@ -239,7 +273,7 @@ export default function PayrollModal({ employeeIds, onClose }: Props) {
           </div>
 
           {/* Employees */}
-          <div className="overflow-hidden rounded-lg border border-[#E6EAED] bg-white">
+          <div className="overflow-x-auto rounded-lg border border-[#E6EAED] bg-white">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">

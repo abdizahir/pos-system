@@ -83,20 +83,55 @@ function useDismiss(open: boolean, close: () => void) {
   useEffect(() => {
     if (!open) return;
 
-    const onPointer = (e: MouseEvent) => {
+    const onPointer = (e: PointerEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
 
-    document.addEventListener("mousedown", onPointer);
+    // pointerdown, not mousedown: iOS Safari sends no mouse events for
+    // taps on plain areas, so the popover would never close there
+    document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("pointerdown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
   }, [open, close]);
 
   return ref;
+}
+
+// Older Safari only has the webkit-prefixed Fullscreen API, and
+// iPhone Safari has none at all
+type WebkitDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => void;
+};
+type WebkitElement = HTMLElement & { webkitRequestFullscreen?: () => void };
+
+const CAN_FULLSCREEN =
+  typeof document !== "undefined" &&
+  !!(
+    document.documentElement.requestFullscreen ||
+    (document.documentElement as WebkitElement).webkitRequestFullscreen
+  );
+
+function fullscreenElement() {
+  return document.fullscreenElement ?? (document as WebkitDocument).webkitFullscreenElement ?? null;
+}
+
+function toggleFullscreen() {
+  const doc = document as WebkitDocument;
+  const root = document.documentElement as WebkitElement;
+
+  if (!fullscreenElement()) {
+    if (root.requestFullscreen) root.requestFullscreen().catch(() => undefined);
+    else root.webkitRequestFullscreen?.();
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen().catch(() => undefined);
+  } else {
+    doc.webkitExitFullscreen?.();
+  }
 }
 
 const iconButton =
@@ -305,7 +340,7 @@ function Notifications() {
               <p className="text-sm text-[#64748B]">All caught up.</p>
             </div>
           ) : (
-            <div className="max-h-[70vh] overflow-y-auto">
+            <div className="max-h-[70dvh] overflow-y-auto">
               {/* ---------------- Overdue customer dues ---------------- */}
               {overdueCount > 0 && (
                 <section className="p-1.5">
@@ -474,18 +509,17 @@ export default function Header() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { pathname } = useLocation();
-  const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
+  const [isFullscreen, setIsFullscreen] = useState(() => !!fullscreenElement());
 
   useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const onChange = () => setIsFullscreen(!!fullscreenElement());
     document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange);
+    };
   }, []);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) void document.documentElement.requestFullscreen();
-    else void document.exitFullscreen();
-  };
 
   const { group, title } = pageTitle(pathname);
   const { isManagement } = useCurrentUser();
@@ -545,14 +579,16 @@ export default function Header() {
             POS
           </button>
 
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className={iconButton}
-            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-          >
-            {isFullscreen ? <FiMinimize size={17} /> : <FiMaximize size={17} />}
-          </button>
+          {CAN_FULLSCREEN && (
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className={iconButton}
+              title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            >
+              {isFullscreen ? <FiMinimize size={17} /> : <FiMaximize size={17} />}
+            </button>
+          )}
 
           {isManagement && <Notifications />}
 

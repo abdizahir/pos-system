@@ -32,7 +32,7 @@ export default function DashboardLayout() {
   const idleSecondsLeft = useIdleLogout();
 
   return (
-    <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
+    <div className="flex h-app overflow-hidden print:block print:h-auto print:overflow-visible">
       {/* Desktop Sidebar */}
       <aside className="hidden md:block shrink-0 print:hidden!">
         <Sidebar />
@@ -51,7 +51,7 @@ export default function DashboardLayout() {
           <Header />
         </div>
 
-        <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto print:overflow-visible">
+        <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain print:overflow-visible">
           <Outlet />
           <div className="print:hidden">
             <Footer />

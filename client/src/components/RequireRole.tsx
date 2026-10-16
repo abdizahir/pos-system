@@ -31,7 +31,7 @@ export default function RequireRole({
   if (redirect && role) return <Navigate to={homeFor(role)} replace />;
 
   return (
-    <section className="flex min-h-[60vh] items-center justify-center p-6">
+    <section className="flex min-h-[60dvh] items-center justify-center p-6">
       <div className="max-w-sm rounded-3xl border border-[#EEF0F3] bg-white p-8 text-center shadow-sm">
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#FFF7ED] text-[#E8862A]">
           <FiLock size={20} />

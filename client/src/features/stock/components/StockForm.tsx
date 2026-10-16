@@ -197,7 +197,7 @@ export default function StockForm() {
 
   return (
     <form autoComplete="off" onSubmit={handleSubmit}>
-      <div className="p-5 max-h-[65vh] overflow-y-auto">
+      <div className="p-5 max-h-[65dvh] overflow-y-auto">
         {/* ======================================================
             ADD PRODUCT
         ====================================================== */}

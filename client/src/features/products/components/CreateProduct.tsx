@@ -31,7 +31,7 @@ export default function CreateProduct({
         </button>
       </div>
       <hr className="border-t border-[#D1D5DB]" />
-      <div className="max-h-[70vh] overflow-y-auto">
+      <div className="max-h-[70dvh] overflow-y-auto">
         <ProductForm productId={productId} />
       </div>
     </div>

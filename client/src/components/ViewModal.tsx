@@ -21,7 +21,7 @@ export default function ViewModal({
       className="fixed inset-0 z-9999 bg-black/50 flex items-center justify-center p-4"
     >
       <div
-        className="w-full max-w-235 bg-white rounded-lg shadow-xl overflow-hidden"
+        className="w-full max-w-235 max-h-[90dvh] overflow-y-auto bg-white rounded-lg shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {children}

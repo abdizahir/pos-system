@@ -324,7 +324,7 @@ export default function SaleForm({ mode }: SaleFormProps) {
 
   return (
     <form autoComplete="off" onSubmit={handleSubmit}>
-      <div id="create-sale-inputs" className="p-5 max-h-[70vh] overflow-y-auto">
+      <div id="create-sale-inputs" className="p-5 max-h-[70dvh] overflow-y-auto">
         {/* Product */}
         <div className="flex flex-col items-start mb-4">
           <label htmlFor="productSearch" className="text-sm font-medium mb-2">
@@ -401,7 +401,7 @@ export default function SaleForm({ mode }: SaleFormProps) {
           <div className="mb-6">
             <h3 className="text-base font-semibold mb-3">Cart</h3>
 
-            <div className="border border-gray-300 rounded-md overflow-hidden">
+            <div className="border border-gray-300 rounded-md overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-100">
                   <tr>
